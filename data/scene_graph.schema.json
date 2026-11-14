@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene_graph.schema.json",
+  "title": "SceneGraph",
+  "description": "Rooms are nodes, doors are edges. Structure only; geometric rules (D-022) are enforced by lang_grounding.scene_graph. Coordinates are meters in the map frame. Neighbors are derived from doors and are not stored.",
+  "type": "object",
+  "required": ["schema_version", "frame", "units", "rooms", "doors"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "frame": { "type": "string", "const": "map" },
+    "units": { "type": "string", "const": "m" },
+    "rooms": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Room" }
+    },
+    "doors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Door" }
+    }
+  },
+  "$defs": {
+    "Point": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "Room": {
+      "type": "object",
+      "required": ["id", "name", "polygon", "centroid", "area"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "not": { "const": "outside" } },
+        "name": { "type": "string", "minLength": 1 },
+        "polygon": {
+          "description": "Counter-clockwise [x, y] vertices; may be non-convex.",
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/Point" }
+        },
+        "centroid": { "$ref": "#/$defs/Point" },
+        "area": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "Door": {
+      "type": "object",
+      "required": ["id", "between", "position"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "between": {
+          "description": "Two different room IDs, or one room ID plus \"outside\".",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "position": { "$ref": "#/$defs/Point" }
+      }
+    }
+  }
+}
