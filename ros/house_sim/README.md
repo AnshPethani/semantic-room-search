@@ -110,7 +110,20 @@ They are chosen by `scripts/viewpoints.py` so that every floor point of the room
 Settings are in the `viewpoints` section of `layout/house_layout.yaml`; regenerate after
 changing them.
 
-## 7. Changing the house
+## 7. Clutter
+
+```bash
+ros2 launch house_sim house_nav.launch.py
+ros2 launch house_sim spawn_objects.launch.py                    # targets (demo)
+ros2 launch house_sim spawn_clutter.launch.py count:=10 seed:=0  # 0-10 obstacles
+```
+
+Clutter (boxes, bins, chairs from `objects/clutter.yaml`) is not on the map; Nav2 only
+sees it through the lidar. Placement is random but fixed by `seed`, keeps 0.5 m from door
+gaps, viewpoints and tour goals, and a reachability check makes sure every viewpoint and
+target can still be reached. Model names are `clutter_<type>_<k>`.
+
+## 8. Changing the house
 
 Edit `layout/house_layout.yaml` (walls, doors, room polygons, start pose), then,
 from the **repository root** (the scene graph is written to `<repo>/data/`):

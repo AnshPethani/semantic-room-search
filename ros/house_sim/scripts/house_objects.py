@@ -44,7 +44,7 @@ def load_yaml(path):
 
 
 # ---------------------------------------------------------------- shapes
-def _check_spec(label, spec):
+def check_spec(label, spec):
     shape = spec.get("shape")
     needed = {"box": ("size",), "cylinder": ("radius", "length"), "sphere": ("radius",)}
     if shape not in needed:
@@ -103,13 +103,13 @@ def object_sdf(name, spec):
 
 
 # ---------------------------------------------------------------- placement
-def _point_segment_distance(p, a, b):
+def point_segment_distance(p, a, b):
     dx, dy = b[0] - a[0], b[1] - a[1]
     t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)))
     return math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy))
 
 
-def _dist_to_box(p, box):
+def dist_to_box(p, box):
     cx, cy, sx, sy = box
     return math.hypot(max(abs(p[0] - cx) - sx / 2, 0.0), max(abs(p[1] - cy) - sy / 2, 0.0))
 
@@ -131,7 +131,7 @@ def place_objects(layout, catalog, scenario):
     """
     classes = catalog["classes"]
     for label, spec in classes.items():
-        _check_spec(label, spec)
+        check_spec(label, spec)
     rooms = {r["id"]: r for r in layout["rooms"]}
     t = layout["house"]["wall_thickness"]
     obstacles = [wall_box(p, t) for p in wall_pieces(layout)]
@@ -156,8 +156,8 @@ def place_objects(layout, catalog, scenario):
         if not point_in_polygon(p, rooms[room]["polygon"]):
             raise ObjectError(f"{where}: {list(p)} is not inside room {room}")
         checks = [
-            ("walls", min(_dist_to_box(p, b) for b in obstacles), WALL_CLEARANCE),
-            ("door gaps", min(_point_segment_distance(p, a, b) for a, b in gaps), DOOR_CLEARANCE),
+            ("walls", min(dist_to_box(p, b) for b in obstacles), WALL_CLEARANCE),
+            ("door gaps", min(point_segment_distance(p, a, b) for a, b in gaps), DOOR_CLEARANCE),
             ("room goals", min(math.hypot(x - gx, y - gy) for gx, gy, _ in goals.values()),
              GOAL_CLEARANCE),
             ("robot start", math.hypot(x - start[0], y - start[1]), START_CLEARANCE),

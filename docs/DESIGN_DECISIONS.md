@@ -365,12 +365,34 @@ string source                   # "yolo" or "oracle"
 - **Assumptions to revisit:** 3.0 m is an assumed detection range for small COCO objects, not measured; occlusion by furniture and clutter is ignored; the camera's minimum range and floor visibility close to the robot are ignored. Tune `camera_range` once the detector is tested.
 - **Alternatives:** greedy set cover (fewer computations, but in K it picks the center first and then needs two more viewpoints for the corners: 3 where 2 suffice); fixed viewpoints by hand (another list to keep in sync).
 
+## Phase 3 (continued): clutter (Kristika, step 5)
+
+### D-090 Clutter types
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `ros/house_sim/objects/clutter.yaml` defines three clutter types as static placeholder shapes: box (0.4 m cube), bin (cylinder, 0.15 m radius, 0.5 m tall) and chair (0.45 × 0.45 × 0.85 m box). All are at least 0.3 m tall, above the Waffle's lidar plane, so Nav2's obstacle layers see them. Clutter is never written to the static map. Gazebo model names are `clutter_<type>_<k>`.
+- **Why:** proposal Step 3 ("boxes, chairs, bins", only in the costmaps through the lidar); static so a collision cannot push clutter out of the way unnoticed.
+- **Alternatives:** Fuel furniture models (later, with the realistic target models); dynamic clutter (pushable, changes the trial).
+
+### D-091 Clutter placement rules and reachability check
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** Each clutter object (footprint circle) must be inside a room and at least 0.15 m from walls, 0.5 m from every door gap (proposal), 0.5 m from every viewpoint and room tour goal (the robot stops and turns there), 0.8 m from the start, 0.6 m from target objects, and 0.3 m from other clutter. In addition, after each object is placed, a flood fill on a 0.1 m grid (robot radius 0.22 m, the Nav2 value, plus 0.03 m margin) checks that every viewpoint and room tour goal is still reachable from the start, and that every target still has a reachable cell within 0.7 m; a candidate that breaks this is rejected.
+- **Why:** proposal: "kept at least 0.5 m from doorways, so no room becomes unreachable"; the door rule alone does not guarantee this (clutter could close off part of a room or a viewpoint), the flood fill does.
+- **Consequence:** viewpoints are never blocked, so the proposal's recovery case "viewpoint blocked: try the next viewpoint, then skip the room" is not exercised by placed clutter. Narrow passages between clutter can still be costly for Nav2.
+- **Alternatives:** only the doorway rule (rooms can be cut off); allowing clutter on viewpoints (exercises recovery, but makes success rates depend on placement luck).
+
+### D-092 Random, seeded clutter spawning
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `scripts/clutter.py` (ROS-free) draws positions uniformly over the house footprint, a type uniformly from the catalog and a uniform yaw from `random.Random(seed)`, and rejects candidates that break D-091 (up to 1000 tries per object, then an error). The same count and seed give the same placement. `ros2 launch house_sim spawn_clutter.launch.py count:=N seed:=S scenario:=demo` spawns 0–10 objects into the running world and logs where they went; `scenario` names the target objects to keep clear of (`none` for no targets). Collision counting from Gazebo contact events and the per-trial seed list belong to the evaluation harness.
+- **Why:** proposal: "0–10 clutter objects spawned at random free locations", "fixed seed list, so every method sees identical conditions".
+- **Alternatives:** hand-made clutter scenarios (not random); sampling per room (uneven density in small rooms).
+
 ## Open points to confirm with Kristika
 2. Whether the planner uses `room_prior` only (proposed) and treats `room_constraint` as informational.
 3. Whether `room_id` in the detection message is computed by the detector node (proposed) or by the planner.
 4. Where the oracle detector gets object ground truth (to agree with Ansh): object poses from Gazebo (bridging the world's pose topic, with labels from the `obj_<label>_<k>` model names, D-073), or the scenario file directly (valid while objects are static).
 
 ## Decision history
+- 2026-11-14: Phase 3 step 5 (clutter) decisions D-090 to D-092 proposed. Step 4 verified (viewpoints E 1, K 2, LR 2, D 1, B1 2, B2 2).
 - 2026-11-14: Phase 3 step 4 (search viewpoints) decisions D-080, D-081 proposed. Step 3 verified in Gazebo (objects on the floor, clear of doorways, robot stops on contact).
 - 2026-11-14: Phase 3 step 3 (target objects) decisions D-070 to D-073 proposed; open point 4 (oracle ground-truth source) added. Step 2 verified: room tour reached all 6 rooms.
 - 2026-11-13: Phase 3 step 2 (AMCL + Nav2) decisions D-060 to D-064 proposed. Step 1 verified in Gazebo (spawn in E, lidar, E-K door, closed exterior door).
