@@ -20,4 +20,4 @@ Project: LLM-Grounded Semantic Object Search in a Known Floorplan (CSC 591 Advan
 - docs/: design docs (DESIGN_DECISIONS.md)
 - data/: scene graph and other data files
 - configs/: configuration files
-- ros/: ROS 2 wrappers (not created yet)
+- ros/: ROS 2 packages (house_sim exists: simulation, Nav2, objects). ROS wrappers around lang_grounding go here as thin packages.

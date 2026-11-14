@@ -25,7 +25,7 @@ Entry format: ID, date, status, decision, why, alternatives considered.
 - **Alternative:** shared-wall adjacency (rejected: includes pairs the robot cannot walk between directly).
 
 ### D-003 Scene graph schema
-- **Date:** 2026-11-12 | **Status:** Proposed (awaiting Kristika)
+- **Date:** 2026-11-12 | **Status:** Agreed
 - See "Interface specs" below.
 
 ### D-004 Grounding output format
@@ -60,7 +60,7 @@ Entry format: ID, date, status, decision, why, alternatives considered.
 
 ### D-014 Validation, retry, fallback
 - **Date:** 2026-11-12 | **Status:** Agreed
-- **Decision:** After each LLM response, check: JSON parses and matches the schema; every target is in the vocabulary; every room ID exists; probabilities are normalized with a small floor so no room is exactly zero (search stays complete); any room constraint names real rooms. On failure, retry once with the error appended. If that fails, fall back to the keyword-to-room table (also an E1 baseline).
+- **Decision:** After each LLM response, check: JSON parses and matches the schema; every target is in the vocabulary; every room ID exists; probabilities are normalized, then every room below a small floor (default 0.001) is held exactly at the floor and the remaining rooms are rescaled so the total is 1 (repeated if the rescaling pushes another room below the floor; details in D-103), so no room is exactly zero (search stays complete); any room constraint names real rooms. On failure, retry once with the error appended. If that fails, fall back to the keyword-to-room table (also an E1 baseline).
 
 ### D-015 Relational commands
 - **Date:** 2026-11-12 | **Status:** Agreed
@@ -170,17 +170,18 @@ string source                   # "yolo" or "oracle"
 ## Phase 1: Scene graph
 
 ### D-020 Placeholder scene graph
-- **Date:** 2026-11-12 | **Status:** Proposed (origin convention awaiting Kristika)
+- **Date:** 2026-11-12 | **Status:** Agreed
 - **Decision:** A placeholder `scene_graph.placeholder.json` is derived by hand from the floorplan screenshot, using the 3 m scale bar (about 62.3 px per metre). Origin is the bottom-left outer corner, x to the right, y up, coordinates rounded to 0.1 m. Door positions are estimated from the screenshot (roughly +/- 0.2 m).
 - **Checks done:** total room area 108.9 m^2 matches the 12.1 x 9.0 m outline; every door lies on the boundary of the rooms it connects; neighbors derived from doors match D-002.
 - **Notes:** LR is L-shaped (6 vertices, non-convex) because K cuts into its lower-left corner, so code must not assume convex rooms. The placeholder is replaced by the graph generated from Kristika's world once it exists.
+- **Update 2026-11-14:** the placeholder is now test data only. The real scene graph is the generated `data/scene_graph.json` (D-054), and the origin convention was settled by D-050. `tests/test_scene_graph.py` and `tests/test_grounding_output.py` still read the placeholder as a stable fixture.
 
 ### D-021 Phase 1 division of work
 - **Date:** 2026-11-12 | **Status:** Agreed
 - **Decision:** The placeholder data is produced in chat. Claude Code writes the JSON Schema file, the loader/validator, the prompt renderer, and tests. The generator from Kristika's world is deferred until her layout exists.
 
 ### D-022 Loader validation rules
-- **Date:** 2026-11-12 | **Status:** Proposed
+- **Date:** 2026-11-12 | **Status:** Agreed
 - **Decision:** The loader rejects a graph unless: `schema_version` is supported; room IDs are unique and `outside` is not used as a room ID; each polygon has at least 3 vertices, does not self-intersect, and is counter-clockwise; stored `area` and `centroid` match the polygon within 0.05; every door's `between` names two different known rooms (or one room plus `outside`); every door position lies on the boundary of each room it connects (tolerance 0.05 m). Neighbors are derived from doors, with `outside` excluded.
 
 ## Phase 2: Project skeleton
@@ -223,12 +224,6 @@ string source                   # "yolo" or "oracle"
 - **Why:** implements D-022 as written; the order reports the most fundamental problem first (a self-intersecting polygon has no meaningful orientation or area).
 - **Alternatives:** Euclidean centroid tolerance (equivalent in spirit, stricter on diagonals); requiring unique door IDs (reasonable, but beyond D-022; flagged to the user).
 
-### D-046 Duplicate door IDs rejected (addition to D-022)
-- **Date:** 2026-11-12 | **Status:** Proposed (D-022's own status is unchanged)
-- **Decision:** In addition to the D-022 rules, the loader rejects a graph in which two doors share the same `id`, with the error `duplicate door ID '<id>'`. The check runs over doors in file order, before each door's other checks.
-- **Why:** door IDs are references in errors and logs; duplicates make them ambiguous. Requested by the user.
-- **Alternatives:** allowing duplicates (rejected by the user).
-
 ### D-044 Prompt rendering format
 - **Date:** 2026-11-12 | **Status:** Proposed
 - **Decision:** `render_for_prompt(graph)` returns plain text: a header stating that "next to", "adjacent to", "neighboring" and "beside" mean "connected by a door" and that rooms sharing only a wall are not next to each other, then one line per room: ID, name, area (1 decimal, m^2), door-connected neighbors as `ID (name)`, and a note if the room has a door to the outside. No polygons, door coordinates, or object information.
@@ -240,6 +235,18 @@ string source                   # "yolo" or "oracle"
 - **Decision:** `python -m lang_grounding.scene_graph validate <file>` prints `OK: <file> (N rooms, M doors)` and each room's neighbors and exits 0; on failure prints `ERROR: <message>` to stderr and exits 1.
 - **Why:** quick check of generated graphs.
 - **Alternatives:** none considered.
+
+### D-046 Duplicate door IDs rejected (addition to D-022)
+- **Date:** 2026-11-12 | **Status:** Agreed
+- **Decision:** In addition to the D-022 rules, the loader rejects a graph in which two doors share the same `id`, with the error `duplicate door ID '<id>'`. The check runs over doors in file order, before each door's other checks.
+- **Why:** door IDs are references in errors and logs; duplicates make them ambiguous. Requested by the user.
+- **Alternatives:** allowing duplicates (rejected by the user).
+
+### D-047 Optional `viewpoints` field on rooms (addition to D-022)
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `Room` has an optional `viewpoints` field: a list of `[x, y]` map-frame points (`None` when absent; an empty list is accepted). The loader rejects a viewpoint that is not inside its room's polygon. "Inside" uses an even-odd ray-casting point-in-polygon test, so non-convex rooms (the L-shaped LR) are handled; a point within 0.05 m of the polygon boundary (`VIEWPOINT_TOL`) also counts as inside. The error names the room and the viewpoint index. `data/scene_graph.schema.json` lists `viewpoints` as an optional property of `Room` (not in `required`). `render_for_prompt` does not mention viewpoints. D-022 itself is unchanged.
+- **Why:** Kristika's generator writes viewpoints into every room (D-080) and the planner may read them through this loader; a viewpoint outside its room would send the robot to the wrong place.
+- **Alternatives:** keep ignoring the field (no validation of generated data); a stricter check with no boundary tolerance (rejects points exactly on a wall line due to rounding); checking viewpoint clearance from walls (that is the generator's job, D-081).
 
 ## Phase 3: Simulated house (Kristika, step 1)
 
@@ -386,12 +393,118 @@ string source                   # "yolo" or "oracle"
 - **Why:** proposal: "0–10 clutter objects spawned at random free locations", "fixed seed list, so every method sees identical conditions".
 - **Alternatives:** hand-made clutter scenarios (not random); sampling per room (uneven density in small rooms).
 
+## Phase 4: Grounding output schema and validator
+
+### D-100 Vocabulary config and loader
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** The detector vocabulary lives in `configs/vocabulary.json` as an object with a `"vocabulary"` list of COCO class names: banana, apple, orange, sandwich, bottle, cup, bowl, book, laptop, remote, cell phone, teddy bear (12 classes, as specified by the user). `load_vocabulary(path=None)` reads it (default: the repo's `configs/vocabulary.json`, found relative to the source tree, so it assumes an editable install or a source checkout). The override is a `path` argument; `build_output_schema` and `validate_grounding` also accept any list of names directly. A vocabulary that is empty, has duplicates, or has non-string entries raises `VocabularyError`.
+- **Why:** D-011/D-013 say the vocabulary is configuration; accepting a list lets tests and experiments swap it without files.
+- **Note:** Kristika's `objects/catalog.yaml` (D-070) has 9 classes and lacks orange, bowl and cell phone; objects for those need to be added on her side if they are to appear in trials (the E1 draft has commands for orange and cell phone).
+- **Alternatives:** hardcoded constant (violates D-013's config intent); a bare JSON list (no room for a description); environment variable for the path (not needed yet).
+
+### D-101 Output JSON Schema form
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `build_output_schema(graph, vocabulary)` returns a plain JSON Schema dict. `targets`: array of strings with the vocabulary as `enum`, `minItems` 1, `uniqueItems`. `room_prior`: object whose property names are the room IDs (all required, `additionalProperties: false`), values numbers in [0, 1]; JSON Schema cannot put enums on object keys, so the IDs are fixed property names. `room_constraint`: `anyOf` null or a non-empty unique array of room-ID enum values. `rationale`: string, `maxLength` 300. Required: `targets`, `room_prior`, `room_constraint`; `rationale` is optional. Top level has `additionalProperties: false`. No `$schema` key.
+- **Why:** D-013 (enums so the model cannot name unknown targets or rooms); matches "Interface specs".
+- **Open for the backend step:** Gemini's structured-output mode accepts only a subset of JSON Schema (for example, it may not accept `anyOf` with null or `additionalProperties`), and Ollama's `format` takes standard JSON Schema. The Gemini adapter will convert this schema if needed; the validator below is the real gate (D-013).
+- **Alternatives:** `room_prior` as a list of `{room, prob}` objects with a room enum (an enum on the room is possible, but it allows duplicates and omissions, which the schema cannot forbid); pydantic-generated schema (less control over the wording).
+
+### D-102 Validator interface
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `validate_grounding(data, graph, vocabulary, *, floor=0.001)` returns a `GroundingResult` (frozen pydantic model: `targets`, `room_prior`, `room_constraint`, `rationale`) or a non-empty `list[str]` of errors. Callers check with `isinstance`. All problems found are reported together, each prefixed with the field (for example `room_prior[D]: must be between 0 and 1, got 1.5`) and, where useful, naming the valid choices, so the list can be appended to a retry prompt (D-014). The response must be a JSON object; unexpected top-level keys are errors; `targets`, `room_prior` and `room_constraint` must be present (`room_constraint` may be `null`); `rationale` may be absent or `null` (stored as an empty string). Bad `vocabulary` or `floor` arguments are programming errors and raise instead of returning errors. Duplicate keys inside `room_prior` cannot be detected after JSON parsing (the parser keeps the last value); only the schema and the backend's parser can prevent them.
+- **Why:** one retry prompt can fix everything at once; strict presence of `room_constraint` matches the schema.
+- **Alternatives:** stop at the first error (more retries); raise an exception carrying the error list (callers must catch); lenient defaults for missing fields (hides model mistakes in E1 failure analysis).
+
+### D-103 Probability handling
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** Each probability must be a finite number (not a boolean) in [0, 1]. If the sum is within 0.05 of 1 (inclusive), the values are divided by the sum; otherwise the response is rejected. The floor (default 0.001, configurable, must satisfy floor times the number of rooms < 1) is then applied: every room below the floor is set to exactly the floor and the remaining rooms are rescaled so the total is 1; if the rescaling pushes another room below the floor, that room is lifted too, repeating until none is (at most one pass per room). The result sums to 1 and no room is below the floor. A floor of 0 disables flooring.
+- **Why:** D-014 ("normalized with a small floor so no room is exactly zero"). A single clamp-then-renormalize step would leave floored rooms slightly under the floor (for example 0.00099); holding them at the floor avoids that and keeps the ranking order.
+- **Alternatives:** clamp then renormalize once (as literally worded; floored rooms end marginally below the floor); mixing with a uniform distribution (changes every probability, even when no room is near zero).
+
+## Phase 4 (continued): grounding loop, backends, cache, logging
+
+### D-104 HTTP with the standard library; no new dependencies
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** Both LLM backends talk to their servers with `urllib.request` through one injectable function (`HttpPost`), so no client library is added. `pyproject.toml` is unchanged (pydantic remains the only runtime dependency).
+- **Why:** the two APIs need one JSON POST each; the injectable function makes every test network-free; fewer packages to install on the Ubuntu/ROS machine.
+- **Alternatives:** the `google-genai` SDK and the `ollama` Python package (convenient, but extra dependencies with their own version churn, and harder to mock precisely); `requests` (extra dependency for one POST).
+
+### D-105 Settings in `configs/grounding.json`
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `configs/grounding.json` holds the settings (loaded and validated by `config.py`, unknown keys rejected): Gemini (`model`, `timeout_s`, `temperature`), Ollama (`model` = `llama3.1:8b`, `host`, `timeout_s`, `temperature`), `floor`, and the paths of the scene graph, vocabulary, keyword table, prompt files, cache directory (`.cache/grounding`) and log file (`logs/grounding.jsonl`; both directories are gitignored). Relative paths resolve against the repository root. The Gemini model is `null` in the file and comes from the `GEMINI_MODEL` environment variable (as in `.env.example`) or from that setting; no Gemini model ID is written in code. The key comes only from `GEMINI_API_KEY`. A missing key or model raises `ConfigError` at start-up; it does not fall back silently. `.env` is not read automatically (it would need another dependency); export the variables (see the README commands in the hand-off).
+- **Why:** D-011 (model name is a config setting; key from the environment) and D-012 (Ollama default is a setting, still Open).
+- **Alternatives:** a `.env` loader such as python-dotenv (extra dependency); defaults inside the code (hardcoded model names).
+
+### D-106 Backend interface and typed errors
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** A backend has a `model` attribute and `generate(system_prompt, user_prompt, json_schema) -> BackendResponse(text, latency_s, model)`. Errors: `BackendError` (base: network failure, other HTTP errors), `BackendTimeoutError` (socket timeout, HTTP 408 or 504), `BackendRateLimitError` (HTTP 429, quota exhausted), `BackendResponseError` (answer arrived but is not in the expected format: not JSON, no candidates, no text, no `message.content`). Missing configuration is a separate `ConfigError`, not a `BackendError`.
+- **Why:** the grounding loop treats every `BackendError` the same (fallback), but logs the type; setup mistakes must not hide behind the fallback.
+- **Alternatives:** one generic error (loses the reason in E1 logs); retrying on timeouts or rate limits (not asked; a rate-limited retry rarely helps).
+
+### D-107 Gemini backend and schema conversion
+- **Date:** 2026-11-14 | **Status:** Proposed (the schema keywords below are assumptions to check against the current Gemini documentation)
+- **Decision:** REST call `POST {base}/v1beta/models/{model}:generateContent` with the key in the `x-goog-api-key` header (never in the URL, body, repr, errors or logs), `systemInstruction`, one user `contents` entry, and `generationConfig` with `temperature` 0, `responseMimeType: application/json` and `responseSchema`. Thought parts in the answer are ignored. `to_gemini_schema()` (pure function, `backends.py`) converts our JSON Schema to the `responseSchema` subset: **kept** `type`, `enum`, `properties`, `required`, `items`, `description`, `minItems`, `maxItems`, `minimum`, `maximum`, `minLength`, `maxLength`; **dropped silently** `$schema`, `$id`, `title`, `additionalProperties`, `uniqueItems`; **rewritten** type names to upper case (`string` to `STRING`) and `anyOf: [{type: null}, X]` to X with `nullable: true`; **rejected with an error** anything else (other `anyOf` shapes, `const`, `$ref`, `oneOf`, `not`, unknown keywords). Enums are kept everywhere. The validator still enforces what the dropped keywords expressed (no extra properties, unique entries).
+- **Assumed, not verified:** that `responseSchema` (not `responseJsonSchema`) is the field to use; that upper-case type names are accepted or required in REST; that `nullable`, `minimum`, `maximum`, `minItems`, `maxLength` are supported; that `additionalProperties` and `uniqueItems` are not supported; that no `propertyOrdering` is needed (not sent).
+- **Why:** D-013 (enums in the schema) and the open point in D-101 about Gemini's subset.
+- **Alternatives:** `responseJsonSchema` (accepts more of JSON Schema, but its support depends on model and API version); keeping `anyOf` (not reliably supported); dropping unknown keywords silently (hides schema changes).
+
+### D-108 Ollama backend
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `POST {host}/api/chat` with `model`, a system and a user message, `format` set to the full unconverted JSON Schema, `stream: false` and `options.temperature` 0; the answer is `message.content`. Default model `llama3.1:8b` from the config (D-012 stays Open). Connection refused is a `BackendError`; the timeout is `ollama.timeout_s`.
+- **Why:** D-012; Ollama's structured outputs take standard JSON Schema.
+- **Alternatives:** `/api/generate` (no separate system message in the same shape).
+
+### D-109 Fake backend
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `FakeBackend(script=None, model="fake-model", latency_s=0)` consumes one scripted item per call (text, dict or list as JSON, or an exception instance that is raised) and records every call. An exhausted script raises `BackendError`. Without a script it returns a valid uniform response built from the schema (first vocabulary class, equal probability per room), so the CLI works offline.
+- **Why:** tests of the loop need exact control over answers and errors.
+- **Alternatives:** unittest.mock objects (more verbose, no offline CLI use).
+
+### D-110 Prompt builder and prompt files
+- **Date:** 2026-11-14 | **Status:** Proposed (the files are PLACEHOLDERS; the user supplies the real text)
+- **Decision:** `configs/prompts/system.md` is the system template and must contain `{scene_graph}`, `{vocabulary}` and `{examples}` (a template missing one is a `ConfigError`); filling is single-pass, so inserted text is never substituted again. `configs/prompts/fewshot.json` is `{"examples": [{"command", "response"}]}`; examples are rendered into the system prompt as `Example N / Command / Response (JSON)`. The user prompt is `Command: <command>`. The scene graph text is `render_for_prompt` (D-044) and the vocabulary a comma-separated list from the config. The retry prompt is the original user prompt plus the validator's errors as a bullet list and a request for a corrected JSON object. The placeholder example is "search the dining area for a bowl" (not an E1 command). Checking the real examples against the E1 commands (D-017) is not automated yet.
+- **Why:** D-017; the backend interface carries only a system and a user prompt, so examples go in the system prompt.
+- **Alternatives:** examples as chat turns (needs a message list in the backend interface); Python `str.format` (clashes with JSON braces).
+
+### D-111 The grounding loop
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `ground(command, graph, vocabulary, backend, cache, logger, *, prompts, keyword_table, floor)` (the last three default to the config files): reject an empty command; render the prompts; look up the cache; otherwise call the backend with the response schema, parse the text as JSON (a Markdown code fence around it is tolerated), validate with `validate_grounding` (unchanged); on invalid output, one retry whose user prompt has the errors appended (D-014); if the second answer is also invalid, or any `BackendError` occurs (no retry for those), use the keyword fallback (D-112). The result, `GroundOutcome`, carries `source` (`llm`, `cache` or `fallback`), `attempts` (backend calls, 0 for a cache hit, at most 2), `latency_s` (wall-clock time of the whole call, retries included), `model` (always the backend's model name, also for cache and fallback), `errors` (every backend or validation error, prefixed with its attempt number) and `no_keyword_match`. Per-attempt backend latencies are in the log.
+- **Why:** D-014, D-015, D-016.
+- **Alternatives:** retrying backend errors (not asked); reporting `model` as `keyword-table` on fallback (the source field already says it).
+
+### D-112 Keyword table, fallback and E1 baseline
+- **Date:** 2026-11-14 | **Status:** Proposed (the table content needs the user's review)
+- **Decision:** `configs/keyword_rooms.json` has entries of `keywords`, `targets` and a `room_prior` over the six room IDs. It has one entry for each of the 12 vocabulary classes plus categories: food (food, eat, hungry, snack, fruit to banana, apple, orange, sandwich), drink (cup, bottle), electronics (laptop, remote, cell phone), toy (teddy bear), reading (book). Priors are plausible-room guesses (kitchen and dining for food and drink, living room and bedrooms for books and electronics, bedrooms for the teddy bear). Matching is case-insensitive on whole words (an optional plural `s` or `es` is allowed; `cupboard` does not match `cup`). All matched entries combine: targets in order of appearance in the command, prior averaged, then validated, normalized and floored with the same validator as LLM output. With no match: all vocabulary classes as targets, a uniform prior, `no_keyword_match` true. Entries whose targets are not in the current vocabulary are skipped. `keyword_ground()` and `check_keyword_table()` work without any backend, so the same table is the E1 keyword baseline. `room_constraint` is always null (the baseline ignores relational commands).
+- **Why:** D-014 (fallback table, also an E1 baseline); class names live in the config, not in code.
+- **Alternatives:** first match only (loses multi-object commands); embeddings (not a keyword baseline).
+
+### D-113 Cache
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** One JSON file per key in the cache directory, written atomically. Key = SHA-256 of: the normalized command (whitespace collapsed, case folded), the scene graph (full dump but without `viewpoints`, since they never reach the prompt, D-047), the vocabulary (order-sensitive), the model name, the fully rendered system prompt (so template, few-shot examples, graph text and vocabulary edits all invalidate it), and the validator floor (it changes the stored prior). Only validated results from the backend are stored; fallback results never are. A missing or corrupt file is a miss.
+- **Why:** D-016, plus the requirement that prompt edits invalidate cached answers.
+- **Alternatives:** hashing the full graph including viewpoints (regenerating viewpoints would throw away valid answers); keying only on the command (stale after any change).
+
+### D-114 JSONL log
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** One line per `ground()` call (cache hits and fallbacks included) with `timestamp` (UTC), `command`, `model`, `cache_hit`, `source`, `attempts`, `latency_s`, `backend_latencies_s`, `raw_responses`, `validation_errors` (per attempt), `backend_errors`, `no_keyword_match` and the final `result`. The API key is never part of a record; as a safeguard, any string equal to the `GEMINI_API_KEY` value (read at write time) is replaced by `[REDACTED]`. The log directory is created on demand.
+- **Why:** D-016 (the log is the E1 data); the result is included so E1 scoring does not need to re-run anything.
+- **Alternatives:** logging only metadata (cannot reproduce E1 failures).
+
+### D-115 CLI
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `python -m lang_grounding.ground "<command>" --backend gemini|ollama|fake` (default `fake`, so a bare call never uses the network) prints the outcome as JSON. Options: `--config`, `--graph`, `--vocabulary`, `--no-cache`, `--no-log`. Defaults use the real `data/scene_graph.json` and the files named in the config. Configuration, scene graph, vocabulary and empty-command errors print `ERROR: ...` to stderr and exit 2.
+- **Why:** quick manual check and demo of each backend.
+- **Alternatives:** human-readable output (harder to script).
+
 ## Open points to confirm with Kristika
 2. Whether the planner uses `room_prior` only (proposed) and treats `room_constraint` as informational.
 3. Whether `room_id` in the detection message is computed by the detector node (proposed) or by the planner.
 4. Where the oracle detector gets object ground truth (to agree with Ansh): object poses from Gazebo (bridging the world's pose topic, with labels from the `obj_<label>_<k>` model names, D-073), or the scenario file directly (valid while objects are static).
 
 ## Decision history
+- 2026-11-14: Phase 4 grounding loop, backends, cache and logging (D-104 to D-115) proposed. Prompt files and the keyword table are placeholders or drafts awaiting the user's text and review.
+- 2026-11-14: D-003, D-020, D-022, D-046 set to Agreed. D-014 wording updated to match D-103 (floored rooms held exactly at the floor; status unchanged). D-047 (optional `viewpoints` field with point-in-polygon check) proposed. Log entries put in numeric order.
+- 2026-11-14: Phase 4 grounding output schema and validator (D-100 to D-103) proposed.
 - 2026-11-14: Phase 3 step 5 (clutter) decisions D-090 to D-092 proposed. Step 4 verified (viewpoints E 1, K 2, LR 2, D 1, B1 2, B2 2).
 - 2026-11-14: Phase 3 step 4 (search viewpoints) decisions D-080, D-081 proposed. Step 3 verified in Gazebo (objects on the floor, clear of doorways, robot stops on contact).
 - 2026-11-14: Phase 3 step 3 (target objects) decisions D-070 to D-073 proposed; open point 4 (oracle ground-truth source) added. Step 2 verified: room tour reached all 6 rooms.

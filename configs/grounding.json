@@ -1,0 +1,23 @@
+{
+  "gemini": {
+    "model": null,
+    "timeout_s": 30.0,
+    "temperature": 0.0
+  },
+  "ollama": {
+    "model": "llama3.1:8b",
+    "host": "http://localhost:11434",
+    "timeout_s": 120.0,
+    "temperature": 0.0
+  },
+  "floor": 0.001,
+  "paths": {
+    "scene_graph": "data/scene_graph.json",
+    "vocabulary": "configs/vocabulary.json",
+    "keyword_table": "configs/keyword_rooms.json",
+    "system_prompt": "configs/prompts/system.md",
+    "fewshot": "configs/prompts/fewshot.json",
+    "cache_dir": ".cache/grounding",
+    "log_path": "logs/grounding.jsonl"
+  }
+}

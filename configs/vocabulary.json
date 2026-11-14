@@ -1,0 +1,17 @@
+{
+  "description": "Detector vocabulary: COCO class names the grounding step may output as targets (D-013, D-100).",
+  "vocabulary": [
+    "banana",
+    "apple",
+    "orange",
+    "sandwich",
+    "bottle",
+    "cup",
+    "bowl",
+    "book",
+    "laptop",
+    "remote",
+    "cell phone",
+    "teddy bear"
+  ]
+}
