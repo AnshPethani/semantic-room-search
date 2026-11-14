@@ -79,7 +79,7 @@ Entry format: ID, date, status, decision, why, alternatives considered.
 
 ## Interface specs (proposed)
 
-All coordinates are in meters in the Nav2 `map` frame. The origin and axes must match the map file Kristika builds; this is an open point to confirm with her (see Open points).
+All coordinates are in meters in the Nav2 `map` frame, which equals the Gazebo world frame of `house_sim`: origin at the bottom-left outer corner of the house, x to the right, y up (D-050).
 
 ### Scene graph (`scene_graph.json`)
 
@@ -241,12 +241,95 @@ string source                   # "yolo" or "oracle"
 - **Why:** quick check of generated graphs.
 - **Alternatives:** none considered.
 
+## Phase 3: Simulated house (Kristika, step 1)
+
+### D-050 Map frame (answers former open point 1)
+- **Date:** 2026-11-13 | **Status:** Agreed
+- **Decision:** The Nav2 `map` frame equals the Gazebo world frame of `house_sim`. Origin at the bottom-left outer corner of the house, x to the right, y up, meters. The map yaml origin is `[-margin, -margin, 0]` (margin 0.5 m in the layout, so `[-0.5, -0.5, 0.0]`), i.e. the bottom-left pixel of the map image starts at (-margin, -margin).
+- **Why:** set by Kristika's world; it is the same convention as the placeholder (D-020), so the scene graph, the map and Gazebo share coordinates with no extra transform.
+- **Alternatives:** map origin at the image corner with a separate map-to-world transform (one more TF to keep in sync).
+
+### D-051 Room polygons are the layout source of truth; floor rectangles are derived
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** In `layout/house_layout.yaml` each room is a counter-clockwise polygon on wall center-lines (so a door lies on the boundary of both rooms it connects), with axis-aligned edges only. LR is the 6-vertex L shape. The generator derives the Gazebo floor tiles by vertical-strip decomposition (cut at every vertex x; inside a strip, pair the crossing horizontal edges in y order). The map does not need room rectangles (the house footprint is filled free, then walls are drawn occupied). The generator rejects non-axis-aligned or clockwise polygons; a test checks that the derived rectangles cover each polygon exactly.
+- **Why:** one room format, the one the scene graph needs; derived rectangles cannot drift from the polygons.
+- **Alternatives:** keep rectangle lists and compute polygons from their union (harder, and the L-shape vertex order would be implicit); list polygons and rectangles separately with a coverage test (two things to edit); allow arbitrary polygons (not needed for this house, and floor tiles would need triangulation).
+
+### D-052 Exterior door `d_E_out` is closed in the simulation
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** `d_E_out` (between E and `outside`) is at (1.8, 9.0) on E's north outer wall, 1.0 m wide; the position is taken from the placeholder (D-020). The scene graph lists it as a normal door. In Gazebo the gap is filled with a static, door-colored (brown) panel with collision, in model `house_doors`, link `door_d_E_out`: length = width - wall thickness (the clear opening between the wall ends), thickness = wall thickness, height = wall height. On the map the panel is occupied. Rule: every door to `outside` is generated closed (no per-door flag).
+- **Why:** D-002 requires the exterior door in the scene graph, but the robot must not be able to leave the house or plan through it.
+- **Alternatives:** leave it out of the world (world and scene graph disagree); open door (robot and Nav2 can leave the house); explicit `closed: true` flag per door (unnecessary while the only exterior door is always closed).
+
+### D-053 Door IDs and door data
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** Door IDs are derived from the layout's `connects` pair as `d_<A>_<B>`, in the listed order, with `outside` written as `out` as in the spec example (giving d_E_LR, d_E_K, d_K_LR, d_LR_D, d_LR_B1, d_LR_B2, d_E_out, the same IDs as the placeholder). The door `center` must lie on a wall center-line, and its whole width must lie on one wall segment (the generator rejects it otherwise). Door width stays in the layout only; the scene graph keeps the spec fields `id`, `between`, `position`. Note: wall pieces are extended by half the wall thickness at both ends (unchanged existing behavior), so the clear opening is width - 0.15 m (0.85 m, or 1.25 m for d_LR_D).
+- **Why:** one source for IDs; the spec format stays unchanged.
+- **Alternatives:** explicit IDs in the layout (a second value that can disagree with `connects`).
+
+### D-054 Generated scene graph file
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** The generator writes `data/scene_graph.json` at the repository root in the "Interface specs" format. Rooms appear in D-001 order (E, K, LR, D, B1, B2), doors in layout order. Polygons are copied from the layout; `area` (shoelace) and `centroid` (area centroid) are computed by the generator and rounded to 4 decimals (well inside the loader's 0.05 tolerance). Format: 2-space indented JSON with each coordinate pair and each `between` pair on one line, LF line endings, trailing newline. All generated files are written as bytes, so the output is identical on Linux and Windows. The centroid of a non-convex room is not guaranteed to lie inside it (for the current LR it does); code that uses centroids as navigation goals must check this.
+- **Why:** Ansh's loader consumes it unchanged; stable formatting makes the drift test byte-exact.
+- **Alternatives:** write into the ROS package and copy (two copies); full precision floats (noisy diffs such as 16.169999999999998).
+
+### D-055 `config/rooms.yaml` removed
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** `config/rooms.yaml` is no longer generated and is deleted. Its rooms, areas, centroids, doors and door adjacency are in `data/scene_graph.json`. The launch file now reads `robot_start` from `layout/house_layout.yaml`. Dropped fields: `rects` (derivable, D-051), `shares_wall_with` (not used under D-002), door `width` (stays in the layout). `CMakeLists.txt` no longer installs `config/`. A test checks the file stays gone.
+- **Why:** two room formats would drift apart.
+- **Alternatives:** keep it and add a test that it agrees with the scene graph (more to maintain, no consumer needs it).
+
+### D-056 Generator location and test import
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** The generator stays at `ros/house_sim/scripts/generate_house.py` (the package root is `ros/house_sim/`, flattened from the earlier nested `ros/house_sim/house_sim/` on 2026-11-13), next to the layout and the outputs it owns. It has no ROS imports (standard library + PyYAML; Pillow only for `--preview`). `tests/test_house_sim.py` loads it by file path with `importlib`, so plain `pytest` runs it without ROS sourced and without installing anything new. `pyyaml>=6` is added to the `dev` extras in `pyproject.toml`.
+- **Why:** keeps simulation code out of `lang_grounding` and keeps the ROS package self-contained, while the tests stay ROS-free.
+- **Alternatives:** move it into `src/lang_grounding` (mixes world generation into the grounding library); a second installable package under `src/` (more packaging for one script); pytest `pythonpath` setting (puts the scripts folder on the import path of every test).
+
+### D-057 Drift test
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** A test generates into a temporary directory and compares byte-for-byte with the committed `worlds/house.sdf`, `maps/house_map.pgm`, `maps/house_map.yaml` and `data/scene_graph.json`. Text files are compared after converting CRLF to LF (so a Windows checkout with `core.autocrlf` passes); the PGM is compared exactly. `maps/house_map_preview.png` is excluded: Pillow output is not guaranteed byte-stable across versions, and the preview is a visual aid only.
+- **Why:** committed outputs can never silently disagree with the layout.
+- **Alternatives:** do not commit generated files (the ROS build and Ansh's tests would then depend on running the generator first).
+
+## Phase 3 (continued): AMCL + Nav2 on the known map (Kristika, step 2)
+
+### D-060 Navigation launch structure
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** `ros/house_sim/launch/house_nav.launch.py` includes `house_world.launch.py` (Gazebo + robot at `robot_start`), `nav2_bringup/bringup_launch.py` (map_server with `maps/house_map.yaml`, AMCL, planner, controller, behaviors, BT navigator; `use_sim_time:=true`, `autostart:=true`) and, optionally, `nav2_bringup/rviz_launch.py`. Arguments: `gui`, `rviz`. No SLAM. Nav2 is used as shipped; only its parameters are changed (D-061).
+- **Why:** smallest launch that gives localization and navigation on the known map; reuses the maintained Nav2 bringup instead of re-listing its nodes.
+- **Alternatives:** own launch listing every Nav2 node (more code, easy to miss a lifecycle node); `nav2_bringup/tb3_simulation_launch.py` (starts its own world and robot).
+
+### D-061 Nav2 parameters: committed copy of the Jazzy default with marked edits
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** `ros/house_sim/config/nav2_params.yaml` is a copy of `/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml`, committed to the repo. Every change made for this house is marked with a `# house_sim:` comment, and a ROS-free test checks the edited values. The edits are made after the copy exists, so they start from the real installed default. Edits so far (base: nav2_bringup 1.3.13): AMCL `set_initial_pose`/`initial_pose` (D-062) and `laser_max_range` 3.5 (TurtleBot3 LDS); MPPI `vx_max`/`vx_min` ±0.26 and `wz_max` 1.82, and velocity smoother limits [±0.26, 0, ±1.82] (Waffle limits; the default 0.5 m/s makes MPPI plan for speeds the robot cannot reach); `enable_stamped_cmd_vel: true` on every node that publishes velocity (the TurtleBot3 Jazzy bridge takes TwistStamped on `/cmd_vel`). Unchanged on purpose: `robot_radius` 0.22, inflation radius 0.7 and cost scaling 3.0 (the narrowest clear opening, 0.85 m, still leaves a 0.35 m corridor for the robot center); tuning comes with the clutter step.
+- **Why:** reproducible (the file used in experiments is versioned); later tuning (inflation, MPPI or DWB, recoveries; proposal Nov 20–25) edits the same file.
+- **Alternatives:** writing the file from scratch (easy to miss a required key, e.g. the Jazzy docking server); rewriting the installed default at launch time with `RewrittenYaml` (small, but the base file can change with a package update, unnoticed).
+
+### D-062 Initial pose comes from the layout
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** AMCL starts at the layout's `robot_start` through `set_initial_pose`/`initial_pose` in `nav2_params.yaml`; a test checks that the two agree. The room tour script also sets the same pose through `BasicNavigator.setInitialPose`, because `waitUntilNav2Active` otherwise republishes a zero initial pose.
+- **Why:** the robot is localized at launch without clicking "2D Pose Estimate", and the spawn pose, AMCL and the tour can not disagree.
+- **Alternatives:** manual pose estimate in RViz (not repeatable for headless trials).
+
+### D-063 One goal per room for navigation checks
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** `ros/house_sim/scripts/room_goals.py` (ROS-free) picks, for each room polygon, the 0.05 m grid point that is farthest from the polygon boundary (wall center-lines), ties broken by distance to the area centroid. Goals are computed at run time from the layout polygons, not stored. Tests check that every goal is inside its own room only and at least 0.5 m from every wall surface and the closed exterior door.
+- **Why:** the centroid of the L-shaped LR is not guaranteed to be inside it (D-054); this point always is, with maximum clearance.
+- **Alternatives:** centroids (can fall outside non-convex rooms); hand-picked goals (another list to keep in sync). Viewpoints for the search (proposal Step 2) are a separate later step and may replace these goals.
+
+### D-064 Room tour as the Nav2 acceptance check
+- **Date:** 2026-11-13 | **Status:** Proposed
+- **Decision:** `ros2 run house_sim room_tour.py` (needs `house_nav.launch.py` running, robot at the start) sends goals to K, LR, D, B2, B1, E in that order with `nav2_simple_commander`, prints the result and time for each room, and exits 1 if any goal fails or times out (default 180 s per goal). This passes through every interior door at least once. It is a manual ROS check, not part of `pytest`.
+- **Why:** the proposal's milestone for this step is reliable navigation into every room on the known map.
+- **Alternatives:** clicking goals in RViz (not repeatable); a launch_testing test (needs Gazebo in CI, too heavy for now).
+
 ## Open points to confirm with Kristika
-1. Map frame origin and axis orientation relative to the floorplan.
 2. Whether the planner uses `room_prior` only (proposed) and treats `room_constraint` as informational.
 3. Whether `room_id` in the detection message is computed by the detector node (proposed) or by the planner.
 
 ## Decision history
+- 2026-11-13: Phase 3 step 2 (AMCL + Nav2) decisions D-060 to D-064 proposed. Step 1 verified in Gazebo (spawn in E, lidar, E-K door, closed exterior door).
+- 2026-11-13: D-050 (map frame = Gazebo world frame, origin at the bottom-left outer corner, map yaml origin [-margin, -margin, 0]) agreed; open point 1 closed. Phase 3 simulated house decisions D-051 to D-057 proposed.
 - 2026-11-12: Phase 1 scene graph implementation (D-040 to D-045) proposed.
 - 2026-11-12: Phase 2 skeleton (D-030, D-031) proposed.
 - 2026-11-12: Phase 1 started (D-020 to D-022); Phase 0 started; D-001, D-002 agreed; D-003 to D-005 proposed; grounding node decisions D-010 to D-017 recorded from the design discussion.
