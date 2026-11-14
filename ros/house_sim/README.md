@@ -87,7 +87,21 @@ default, with this house's changes marked `# house_sim:`. The tour goal of each 
 is the interior point farthest from its walls (`scripts/room_goals.py`); the tour
 prints SUCCEEDED/FAILED/TIMEOUT per room and exits 1 if any room is not reached.
 
-## 5. Changing the house
+## 5. Target objects
+
+```bash
+ros2 launch house_sim house_nav.launch.py             # or house_world.launch.py
+# second terminal:
+ros2 launch house_sim spawn_objects.launch.py         # scenario:=demo (default)
+```
+
+`objects/catalog.yaml` holds the target classes (COCO names) as colored placeholder
+shapes; `objects/scenarios/demo.yaml` places one of each in a plausible room. Gazebo model
+names are `obj_<label>_<k>` (e.g. `obj_teddy_bear_0`). Placements are checked before
+spawning: inside the declared room, clear of walls (0.3 m), door gaps (0.5 m), room tour
+goals (0.6 m), the start (0.8 m) and each other (0.3 m).
+
+## 6. Changing the house
 
 Edit `layout/house_layout.yaml` (walls, doors, room polygons, start pose), then,
 from the **repository root** (the scene graph is written to `<repo>/data/`):

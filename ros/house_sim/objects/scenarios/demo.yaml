@@ -1,0 +1,13 @@
+# Demo placement (D-071): one object of every catalog class, each in a plausible room.
+# xy in the map frame (D-050); room is checked against the room polygons; yaw in radians.
+# Placement rules (D-072) are checked by scripts/house_objects.py and tests/test_house_objects.py.
+objects:
+  - {label: banana,     room: K,  xy: [0.6, 0.6],   yaw: 0.0}
+  - {label: apple,      room: K,  xy: [4.5, 0.6],   yaw: 0.0}
+  - {label: bottle,     room: K,  xy: [0.6, 3.5],   yaw: 0.0}
+  - {label: sandwich,   room: D,  xy: [5.7, 0.75],  yaw: 0.0}
+  - {label: cup,        room: D,  xy: [8.2, 0.75],  yaw: 0.0}
+  - {label: laptop,     room: LR, xy: [8.2, 5.5],   yaw: 0.0}
+  - {label: remote,     room: LR, xy: [4.0, 5.5],   yaw: 0.5}
+  - {label: book,       room: B1, xy: [11.4, 8.4],  yaw: 0.3}
+  - {label: teddy bear, room: B2, xy: [11.4, 0.6],  yaw: 0.0}

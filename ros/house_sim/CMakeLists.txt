@@ -3,10 +3,12 @@ project(house_sim)
 
 find_package(ament_cmake REQUIRED)
 
-install(DIRECTORY launch worlds maps layout models config
+install(DIRECTORY launch worlds maps layout models config objects
   DESTINATION share/${PROJECT_NAME})
-# room_tour.py imports room_goals.py, which imports generate_house.py: install all three together.
+# The scripts import each other (room_tour -> room_goals -> generate_house; house_objects ->
+# room_goals, generate_house), so they are installed together.
 install(PROGRAMS scripts/generate_house.py scripts/room_goals.py scripts/room_tour.py
+  scripts/house_objects.py
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

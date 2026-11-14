@@ -323,11 +323,39 @@ string source                   # "yolo" or "oracle"
 - **Why:** the proposal's milestone for this step is reliable navigation into every room on the known map.
 - **Alternatives:** clicking goals in RViz (not repeatable); a launch_testing test (needs Gazebo in CI, too heavy for now).
 
+## Phase 3 (continued): target objects (Kristika, step 3)
+
+### D-070 Placeholder target objects per COCO class
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** `ros/house_sim/objects/catalog.yaml` lists the proposal's target classes, keyed by exact COCO name (banana, apple, sandwich, bottle, cup, book, laptop, remote, teddy bear). Each is a simple shape (box, cylinder or sphere) at about real size with a distinct color. Objects are static models with one collision and one visual, so the robot cannot push them away and the touch step can register contact. Realistic models (Gazebo Fuel where available) replace the shapes with the YOLO switch (proposal Nov 20–25).
+- **Why:** the oracle detector (used first) does not need realistic appearance; no dependency on downloading models now.
+- **Alternatives:** Fuel models now (network at run time, availability per class not checked yet); dynamic objects (can be pushed or knocked over by the robot, which moves the ground truth).
+
+### D-071 Scenario files
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** A scenario is `ros/house_sim/objects/scenarios/<name>.yaml` with a list of objects: `label` (catalog class), `room`, `xy` (map frame) and `yaw`. The room is stored for readability and for later plausible/implausible bookkeeping, and is checked against the polygons. `demo.yaml` places one object of every class in a plausible room. Per-trial random placement (80% plausible, 20% implausible, fixed seeds) belongs to the evaluation harness and is not part of this step.
+- **Why:** a fixed, readable placement for the first end-to-end runs and for Ansh's oracle detector; the harness can later write files in the same format.
+- **Alternatives:** objects baked into `house.sdf` (every placement change needs a regenerated world); random placement now (harness work, out of scope).
+
+### D-072 Object placement rules
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** Each object (its footprint circle) must be inside its declared room and at least 0.3 m from wall surfaces and the closed exterior door, 0.5 m from every door gap, 0.6 m from every room tour goal (D-063), 0.8 m from the robot start, and 0.3 m from every other object. `scripts/house_objects.py` checks this before spawning; tests cover each rule.
+- **Why:** most objects are lower than the Waffle's lidar plane, so Nav2's costmaps cannot see them; keeping them off doorways, tour goals and the start keeps navigation from driving into them. 0.5 m from doorways is the proposal's clutter rule.
+- **Alternatives:** no rules (a placement can block a doorway or sit on a goal); adding the depth camera to the costmap (a Nav2 tuning change for the clutter step).
+
+### D-073 Spawning objects and model names
+- **Date:** 2026-11-14 | **Status:** Proposed (model names are an interface with Ansh's oracle detector)
+- **Decision:** `ros2 launch house_sim spawn_objects.launch.py scenario:=demo` spawns a scenario into the running world (`house`) with `ros_gz_sim create`, one call per object, after the placement check. Gazebo model names are `obj_<label>_<k>`, with spaces in the label replaced by underscores and `k` counting objects of the same class from 0 (e.g. `obj_teddy_bear_0`); `house_objects.label_from_model_name` maps a name back to the COCO label.
+- **Why:** objects change per trial without regenerating the world; the name alone tells the oracle detector the class.
+- **Alternatives:** spawning from a Python node through the Gazebo service (more code than the existing `create` tool); names without the class (the oracle would need the scenario file to know the label).
+
 ## Open points to confirm with Kristika
 2. Whether the planner uses `room_prior` only (proposed) and treats `room_constraint` as informational.
 3. Whether `room_id` in the detection message is computed by the detector node (proposed) or by the planner.
+4. Where the oracle detector gets object ground truth (to agree with Ansh): object poses from Gazebo (bridging the world's pose topic, with labels from the `obj_<label>_<k>` model names, D-073), or the scenario file directly (valid while objects are static).
 
 ## Decision history
+- 2026-11-14: Phase 3 step 3 (target objects) decisions D-070 to D-073 proposed; open point 4 (oracle ground-truth source) added. Step 2 verified: room tour reached all 6 rooms.
 - 2026-11-13: Phase 3 step 2 (AMCL + Nav2) decisions D-060 to D-064 proposed. Step 1 verified in Gazebo (spawn in E, lidar, E-K door, closed exterior door).
 - 2026-11-13: D-050 (map frame = Gazebo world frame, origin at the bottom-left outer corner, map yaml origin [-margin, -margin, 0]) agreed; open point 1 closed. Phase 3 simulated house decisions D-051 to D-057 proposed.
 - 2026-11-12: Phase 1 scene graph implementation (D-040 to D-045) proposed.
