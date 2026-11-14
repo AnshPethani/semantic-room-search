@@ -349,12 +349,29 @@ string source                   # "yolo" or "oracle"
 - **Why:** objects change per trial without regenerating the world; the name alone tells the oracle detector the class.
 - **Alternatives:** spawning from a Python node through the Gazebo service (more code than the existing `create` tool); names without the class (the oracle would need the scenario file to know the label).
 
+## Phase 3 (continued): search viewpoints (Kristika, step 4)
+
+### D-080 Viewpoints in the scene graph
+- **Date:** 2026-11-14 | **Status:** Proposed (adds the optional field the spec reserved; Ansh's loader and schema are unchanged)
+- **Decision:** The generator adds `"viewpoints": [[x, y], ...]` to every room in `data/scene_graph.json`: 1–3 map-frame positions, sorted by x then y, rounded to 1 mm. At each viewpoint the robot turns 360°; viewpoints have no heading. The loader already ignores unknown fields (D-042), and the JSON Schema does not forbid extra properties, so the graph still validates. Settings live in a `viewpoints` section of `house_layout.yaml` (camera range, wall clearance, maximum per room, grid sizes). `maps/house_map_preview.png` marks viewpoints as green squares.
+- **Why:** the "Interface specs" note reserves this optional field for Kristika's viewpoint generator; one file holds everything the planner needs about rooms.
+- **Alternatives:** a separate viewpoints file (another file to keep in sync with the graph); storing the robot heading too (not needed for a 360° turn).
+- **For Ansh:** if the planner reads viewpoints through `lang_grounding.scene_graph`, the `Room` model and the schema file need an optional `viewpoints` field and a check that each point is inside its room.
+
+### D-081 Viewpoint coverage model and selection
+- **Date:** 2026-11-14 | **Status:** Proposed
+- **Decision:** A floor point counts as seen from a viewpoint if it is within `camera_range` (3.0 m) and the straight line to it stays inside the room polygon (matters for the L-shaped LR). Floor points are sampled every 0.2 m, at least 0.05 m beyond the wall surfaces; candidate viewpoints every 0.25 m, at least 0.5 m from wall surfaces so the robot can turn in place. Selection: the fewest viewpoints (up to 3) that see every floor sample; among those, the set that does so with the smallest range (tried in 0.25 m steps up to 3.0 m), so each viewpoint sits near the middle of what it covers; ties go to the set whose viewpoint closest to a wall is farthest from it, then to grid order. Search is exhaustive over candidate sets, so the result is deterministic and the count is minimal on the grid. Result for this house: E 1, K 2, LR 2, D 1, B1 2, B2 2 (10 in total). The generator stops with an error if a room needs more than 3.
+- **Why:** follows the proposal ("1–3 viewpoints per room, chosen from its polygon so the camera covers the room during a 360° rotation"); the count feeds the planner's search cost.
+- **Assumptions to revisit:** 3.0 m is an assumed detection range for small COCO objects, not measured; occlusion by furniture and clutter is ignored; the camera's minimum range and floor visibility close to the robot are ignored. Tune `camera_range` once the detector is tested.
+- **Alternatives:** greedy set cover (fewer computations, but in K it picks the center first and then needs two more viewpoints for the corners: 3 where 2 suffice); fixed viewpoints by hand (another list to keep in sync).
+
 ## Open points to confirm with Kristika
 2. Whether the planner uses `room_prior` only (proposed) and treats `room_constraint` as informational.
 3. Whether `room_id` in the detection message is computed by the detector node (proposed) or by the planner.
 4. Where the oracle detector gets object ground truth (to agree with Ansh): object poses from Gazebo (bridging the world's pose topic, with labels from the `obj_<label>_<k>` model names, D-073), or the scenario file directly (valid while objects are static).
 
 ## Decision history
+- 2026-11-14: Phase 3 step 4 (search viewpoints) decisions D-080, D-081 proposed. Step 3 verified in Gazebo (objects on the floor, clear of doorways, robot stops on contact).
 - 2026-11-14: Phase 3 step 3 (target objects) decisions D-070 to D-073 proposed; open point 4 (oracle ground-truth source) added. Step 2 verified: room tour reached all 6 rooms.
 - 2026-11-13: Phase 3 step 2 (AMCL + Nav2) decisions D-060 to D-064 proposed. Step 1 verified in Gazebo (spawn in E, lidar, E-K door, closed exterior door).
 - 2026-11-13: D-050 (map frame = Gazebo world frame, origin at the bottom-left outer corner, map yaml origin [-margin, -margin, 0]) agreed; open point 1 closed. Phase 3 simulated house decisions D-051 to D-057 proposed.

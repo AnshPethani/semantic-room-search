@@ -2,6 +2,7 @@
 """Generate the Gazebo world, the Nav2 map and the scene graph from layout/house_layout.yaml.
 
 ROS-free: needs only the Python standard library and PyYAML (Pillow only for --preview).
+Search viewpoints come from viewpoints.py (same folder) and are stored in the scene graph.
 Tests import this file by path (tests/test_house_sim.py), so keep it free of ROS imports.
 
 Usage (from the repository root):
@@ -26,6 +27,11 @@ import sys
 from pathlib import Path
 
 import yaml
+
+# Sibling modules (viewpoints.py) are imported lazily from this folder.
+_HERE = str(Path(__file__).resolve().parent)
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
 
 PKG = Path(__file__).resolve().parents[1]      # ros/house_sim
 REPO = PKG.parents[1]                          # repository root
@@ -233,13 +239,25 @@ def check_layout(L):
     if not any(point_in_polygon((s["x"], s["y"]), r["polygon"]) for r in L["rooms"]):
         raise LayoutError("robot_start is not inside any room")
 
+    vp = L.get("viewpoints")
+    keys = ("camera_range", "wall_clearance", "max_per_room", "candidate_grid", "target_grid")
+    if not isinstance(vp, dict) or any(k not in vp or not vp[k] > 0 for k in keys):
+        raise LayoutError(f"viewpoints: needs positive {', '.join(keys)}")
+
 
 # ---------------------------------------------------------------- scene graph
 _PAIR = re.compile(r"\[\s*([^\[\]\s,]+),\s*([^\[\]\s,]+)\s*\]")
 
 
 def scene_graph(L):
-    """Scene graph dict in the "Interface specs" format (schema_version 1)."""
+    """Scene graph dict in the "Interface specs" format (schema_version 1), with the optional
+    per-room "viewpoints" field (D-080)."""
+    from viewpoints import ViewpointError, layout_viewpoints  # lazy: viewpoints imports us
+
+    try:
+        vps = layout_viewpoints(L)
+    except ViewpointError as exc:
+        raise LayoutError(f"viewpoints: {exc}") from exc
     rooms = []
     for r in L["rooms"]:
         poly = [[float(x), float(y)] for x, y in r["polygon"]]
@@ -250,6 +268,7 @@ def scene_graph(L):
             "polygon": poly,
             "centroid": [round(cx, DECIMALS), round(cy, DECIMALS)],
             "area": round(signed_area(poly), DECIMALS),
+            "viewpoints": vps[r["id"]],
         })
     doors = [{"id": door_id(d), "between": list(d["connects"]),
               "position": [float(c) for c in d["center"]]} for d in L["doors"]]
@@ -427,6 +446,11 @@ def write_preview(L, path):
 
     for room in L["rooms"]:
         draw.text(to_px(*centroid(room["polygon"])), room["id"], fill=(200, 0, 0))
+    from viewpoints import layout_viewpoints  # lazy: viewpoints imports us
+    for points in layout_viewpoints(L).values():
+        for x, y in points:  # green square = search viewpoint
+            px, py = to_px(x, y)
+            draw.rectangle([px - 4, py - 4, px + 4, py + 4], outline=(0, 150, 0), width=2)
     s = L["robot_start"]
     px, py = to_px(s["x"], s["y"])
     draw.ellipse([px - 6, py - 6, px + 6, py + 6], outline=(0, 140, 200), width=2)

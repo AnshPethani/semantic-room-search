@@ -101,7 +101,16 @@ names are `obj_<label>_<k>` (e.g. `obj_teddy_bear_0`). Placements are checked be
 spawning: inside the declared room, clear of walls (0.3 m), door gaps (0.5 m), room tour
 goals (0.6 m), the start (0.8 m) and each other (0.3 m).
 
-## 6. Changing the house
+## 6. Search viewpoints
+
+Every room in `data/scene_graph.json` has a `viewpoints` list: 1–3 positions where the
+robot turns 360° to look for targets (green squares in `maps/house_map_preview.png`).
+They are chosen by `scripts/viewpoints.py` so that every floor point of the room is within
+`camera_range` (3 m) and in line of sight of a viewpoint, with as few viewpoints as possible.
+Settings are in the `viewpoints` section of `layout/house_layout.yaml`; regenerate after
+changing them.
+
+## 7. Changing the house
 
 Edit `layout/house_layout.yaml` (walls, doors, room polygons, start pose), then,
 from the **repository root** (the scene graph is written to `<repo>/data/`):

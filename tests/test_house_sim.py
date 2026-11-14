@@ -327,12 +327,19 @@ OUTPUTS = ([("pkg", rel) for rel in gen.PKG_OUTPUTS]
            + [("data", rel) for rel in gen.DATA_OUTPUTS])
 
 
+@pytest.fixture(scope="module")
+def generated(layout, tmp_path_factory):
+    """Generate once into a temporary directory (viewpoint selection takes a few seconds)."""
+    out = tmp_path_factory.mktemp("generated")
+    gen.write_outputs(layout, out / "pkg", out / "data")
+    return out
+
+
 @pytest.mark.parametrize("root,rel", OUTPUTS)
-def test_committed_outputs_match_generator(layout, tmp_path, root, rel):
-    gen.write_outputs(layout, tmp_path / "pkg", tmp_path / "data")
+def test_committed_outputs_match_generator(generated, root, rel):
     committed = (PKG if root == "pkg" else REPO / "data") / rel
     assert committed.exists(), f"{committed} is missing; run the generator"
-    new, old = (tmp_path / root / rel).read_bytes(), committed.read_bytes()
+    new, old = (generated / root / rel).read_bytes(), committed.read_bytes()
     if committed.suffix != ".pgm":  # tolerate a CRLF checkout of text files (D-057)
         new, old = new.replace(b"\r\n", b"\n"), old.replace(b"\r\n", b"\n")
     assert new == old, f"{committed.relative_to(REPO)} is stale; run the generator"

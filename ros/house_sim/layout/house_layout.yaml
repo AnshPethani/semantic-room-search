@@ -66,6 +66,15 @@ rooms:
 
 robot_start: {x: 1.65, y: 7.5, yaw: 0.0}   # inside the entry hall E
 
+# Search viewpoints (D-080, D-081), written to the scene graph. The robot turns 360 deg at each
+# one; the camera is assumed to detect objects up to camera_range meters away in line of sight.
+viewpoints:
+  camera_range: 3.0      # m, detection range assumed for the RGB-D camera (tunable)
+  wall_clearance: 0.5    # m from wall surfaces, room to turn in place
+  max_per_room: 3        # proposal: 1-3 viewpoints per room
+  candidate_grid: 0.25   # m, spacing of candidate viewpoints
+  target_grid: 0.2       # m, spacing of floor samples that must be seen
+
 map:
   resolution: 0.05     # m / pixel
   margin: 0.5          # unknown border around the house; map yaml origin = [-margin, -margin, 0]
