@@ -39,7 +39,12 @@
           "items": { "$ref": "#/$defs/Point" }
         },
         "centroid": { "$ref": "#/$defs/Point" },
-        "area": { "type": "number", "exclusiveMinimum": 0 }
+        "area": { "type": "number", "exclusiveMinimum": 0 },
+        "viewpoints": {
+          "description": "Optional search viewpoints [x, y] in the map frame. Each must lie inside the room polygon (small boundary tolerance); enforced by lang_grounding.scene_graph.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Point" }
+        }
       }
     },
     "Door": {

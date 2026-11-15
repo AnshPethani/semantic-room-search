@@ -289,7 +289,83 @@ def test_placeholder_has_only_schema_keys():
     schema = json.loads(SCHEMA.read_text())
     raw = json.loads(PLACEHOLDER.read_text())
     assert set(raw) == set(schema["properties"])
+    room_schema = schema["$defs"]["Room"]
     for r in raw["rooms"]:
-        assert set(r) == set(schema["$defs"]["Room"]["properties"])
+        # viewpoints is optional, so a room may omit it
+        assert set(room_schema["required"]) <= set(r) <= set(room_schema["properties"])
     for d in raw["doors"]:
         assert set(d) == set(schema["$defs"]["Door"]["properties"])
+
+
+# ----------------------------------------------------------------- viewpoints (D-047)
+
+def test_viewpoints_optional_in_schema():
+    room_schema = json.loads(SCHEMA.read_text())["$defs"]["Room"]
+    assert "viewpoints" in room_schema["properties"]
+    assert "viewpoints" not in room_schema["required"]
+
+
+def test_viewpoints_default_to_none():
+    g = load_scene_graph(PLACEHOLDER)
+    assert all(r.viewpoints is None for r in g.rooms)
+
+
+def test_valid_viewpoints_are_loaded(raw):
+    _room(raw, "E")["viewpoints"] = [[1.65, 6.55]]
+    _room(raw, "LR")["viewpoints"] = [[4.0, 5.0], [6.0, 3.0]]  # LR arm and main part
+    g = parse_scene_graph(raw)
+    assert g.room("E").viewpoints == [(1.65, 6.55)]
+    assert len(g.room("LR").viewpoints) == 2
+
+
+def test_empty_viewpoints_list_accepted(raw):
+    _room(raw, "E")["viewpoints"] = []
+    assert parse_scene_graph(raw).room("E").viewpoints == []
+
+
+def test_viewpoint_outside_room(raw):
+    _room(raw, "E")["viewpoints"] = [[1.65, 6.55], [5.0, 6.0]]
+    with pytest.raises(SceneGraphError, match=r"room 'E': viewpoint 1 \[5.0, 6.0\] is outside"):
+        parse_scene_graph(raw)
+
+
+def test_viewpoint_in_lr_notch_rejected(raw):
+    # (4.0, 2.5) is inside LR's bounding box but in the notch cut out by K.
+    _room(raw, "LR")["viewpoints"] = [[4.0, 2.5]]
+    with pytest.raises(SceneGraphError, match="room 'LR': viewpoint 0.*outside"):
+        parse_scene_graph(raw)
+
+
+def test_same_point_is_valid_in_the_room_that_owns_the_notch(raw):
+    _room(raw, "K")["viewpoints"] = [[4.0, 2.5]]
+    parse_scene_graph(raw)
+
+
+def test_viewpoint_on_boundary_and_within_tolerance(raw):
+    # LR's notch edge is x = 5.1 for y in [1.5, 4.1].
+    _room(raw, "LR")["viewpoints"] = [[5.1, 2.8], [5.06, 2.8]]
+    parse_scene_graph(raw)
+
+
+def test_viewpoint_beyond_tolerance_rejected(raw):
+    _room(raw, "LR")["viewpoints"] = [[4.9, 2.8]]  # 0.2 m into the notch
+    with pytest.raises(SceneGraphError, match="room 'LR': viewpoint 0"):
+        parse_scene_graph(raw)
+
+
+def test_viewpoint_wrong_shape(raw):
+    _room(raw, "E")["viewpoints"] = [[1.0, 5.0, 2.0]]
+    with pytest.raises(SceneGraphError, match="viewpoints"):
+        parse_scene_graph(raw)
+
+
+def test_viewpoints_not_in_prompt_text(raw):
+    _room(raw, "E")["viewpoints"] = [[1.65, 6.55]]
+    text = render_for_prompt(parse_scene_graph(raw))
+    assert "viewpoint" not in text.lower()
+    assert "1.65" not in text
+
+
+def test_generated_scene_graph_with_viewpoints_validates():
+    g = load_scene_graph(DATA / "scene_graph.json")
+    assert all(r.viewpoints for r in g.rooms)

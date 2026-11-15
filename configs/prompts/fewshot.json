@@ -1,0 +1,14 @@
+{
+  "description": "PLACEHOLDER few-shot examples. Replace with the real examples. They must not overlap the E1 test commands (D-017).",
+  "examples": [
+    {
+      "command": "PLACEHOLDER: search the dining area for a bowl",
+      "response": {
+        "targets": ["bowl"],
+        "room_prior": { "D": 0.82, "K": 0.10, "LR": 0.04, "E": 0.01, "B1": 0.015, "B2": 0.015 },
+        "room_constraint": ["D"],
+        "rationale": "The command names the dining area."
+      }
+    }
+  ]
+}

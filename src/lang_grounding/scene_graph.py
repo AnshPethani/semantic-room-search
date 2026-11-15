@@ -24,6 +24,7 @@ OUTSIDE = "outside"
 AREA_TOL = 0.05
 CENTROID_TOL = 0.05
 DOOR_TOL = 0.05  # metres
+VIEWPOINT_TOL = 0.05  # metres; a viewpoint this close to the boundary still counts as inside
 _EPS = 1e-9  # geometric zero for orientation tests
 
 
@@ -43,6 +44,7 @@ class Room(BaseModel):
     polygon: list[Point]
     centroid: Point
     area: Coord
+    viewpoints: list[Point] | None = None  # optional, from the viewpoint generator (D-047)
 
 
 class Door(BaseModel):
@@ -163,6 +165,21 @@ def _distance_to_boundary(p: Point, poly: list[Point]) -> float:
     return min(_point_segment_distance(p, poly[i], poly[(i + 1) % n]) for i in range(n))
 
 
+def _point_in_polygon(p: Point, poly: list[Point]) -> bool:
+    """Even-odd ray casting; correct for non-convex simple polygons (boundary not handled)."""
+    px, py = p
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        if (y1 > py) != (y2 > py):
+            x_cross = x1 + (py - y1) * (x2 - x1) / (y2 - y1)
+            if px < x_cross:
+                inside = not inside
+    return inside
+
+
 # --------------------------------------------------------------------------- validation
 
 def _check_polygon(room: Room) -> None:
@@ -213,6 +230,17 @@ def _check_polygon(room: Room) -> None:
             f"centroid [{cx:.4f}, {cy:.4f}] (tolerance {CENTROID_TOL} per coordinate)")
 
 
+def _check_viewpoints(room: Room) -> None:
+    for i, vp in enumerate(room.viewpoints or []):
+        if _point_in_polygon(vp, room.polygon):
+            continue
+        if _distance_to_boundary(vp, room.polygon) <= VIEWPOINT_TOL:
+            continue
+        raise SceneGraphError(
+            f"room '{room.id}': viewpoint {i} {list(vp)} is outside the room polygon "
+            f"(boundary tolerance {VIEWPOINT_TOL} m)")
+
+
 def _check_door(door: Door, rooms: dict[str, Room]) -> None:
     did = door.id
     if len(door.between) != 2:
@@ -249,6 +277,7 @@ def _validate(graph: SceneGraph) -> None:
 
     for room in graph.rooms:
         _check_polygon(room)
+        _check_viewpoints(room)
     seen_doors: set[str] = set()
     for door in graph.doors:
         if door.id in seen_doors:
