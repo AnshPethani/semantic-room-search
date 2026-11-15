@@ -298,7 +298,7 @@ def test_sdf_has_one_collision_box_per_wall_piece(layout, world):
     pieces = gen.wall_pieces(layout)
     links = _model(world, "house_walls").findall("link")
     assert len(links) == len(pieces)
-    for link, piece in zip(links, pieces):
+    for link, piece in zip(links, pieces, strict=True):
         collisions = link.findall("collision")
         assert len(collisions) == 1
         size = _floats(collisions[0].find("geometry/box/size").text)

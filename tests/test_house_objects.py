@@ -1,6 +1,7 @@
 """ROS-free tests for target objects (D-070 to D-073): catalog, demo scenario, placement rules."""
 import copy
 import importlib.util
+import json
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -36,10 +37,9 @@ COCO = {
     "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book",
     "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush",
 }
-# Ansh's detector vocabulary (12 COCO classes, 2026-11-14). The world must be able to contain
-# every class the LLM may name. To be replaced by reading his vocabulary file after the pull.
-VOCABULARY = {"banana", "apple", "orange", "sandwich", "bottle", "cup", "bowl", "book", "laptop",
-              "remote", "cell phone", "teddy bear"}
+# The world must be able to contain every class the LLM may name (D-070, D-100).
+VOCABULARY = set(json.loads((REPO / "configs" / "vocabulary.json").read_text(encoding="utf-8"))
+                 ["vocabulary"])
 
 
 @pytest.fixture(scope="module")
@@ -82,7 +82,8 @@ def test_demo_places_one_object_of_every_class(placed, catalog):
 def test_demo_objects_are_in_their_declared_rooms(placed, layout):
     rooms = {r["id"]: r["polygon"] for r in layout["rooms"]}
     for o in placed:
-        inside = [rid for rid, poly in rooms.items() if gen.point_in_polygon((o["x"], o["y"]), poly)]
+        p = (o["x"], o["y"])
+        inside = [rid for rid, poly in rooms.items() if gen.point_in_polygon(p, poly)]
         assert inside == [o["room"]], o["name"]
 
 
@@ -118,7 +119,7 @@ def test_truth_file_matches_the_scenario(placed, catalog):
     t = ho.truth("demo", placed, catalog)
     assert (t["scenario"], t["frame"], t["units"]) == ("demo", "map", "m")
     assert [o["name"] for o in t["objects"]] == [o["name"] for o in placed]
-    for entry, o in zip(t["objects"], placed):
+    for entry, o in zip(t["objects"], placed, strict=True):
         assert entry["label"] == o["label"] == ho.label_from_model_name(entry["name"])
         assert entry["position"] == [o["x"], o["y"], o["z"]]
         assert entry["height"] == pytest.approx(2 * o["z"])

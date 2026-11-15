@@ -1,8 +1,10 @@
 """Spawn the target objects of a scenario into the running house world (D-073).
 
-    ros2 launch house_sim spawn_objects.launch.py                       # objects/scenarios/demo.yaml
-    ros2 launch house_sim spawn_objects.launch.py scenario:=my_scenario # objects/scenarios/<name>.yaml
+    ros2 launch house_sim spawn_objects.launch.py                    # scenarios/demo.yaml
+    ros2 launch house_sim spawn_objects.launch.py scenario:=my_scene # scenarios/my_scene.yaml
     ros2 launch house_sim spawn_objects.launch.py scenario:=/abs/path.yaml
+
+(scenario names refer to objects/scenarios/<name>.yaml)
 
 Start house_world.launch.py or house_nav.launch.py first. The scenario is checked against the
 placement rules before anything is spawned; a broken rule stops the launch with an error.

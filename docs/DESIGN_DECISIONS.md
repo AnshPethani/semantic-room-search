@@ -36,6 +36,18 @@ Entry format: ID, date, status, decision, why, alternatives considered.
 - **Date:** 2026-11-12 | **Status:** Proposed (awaiting Kristika)
 - See "Interface specs" below.
 
+### D-006 Planner input from grounding
+- **Date:** 2026-11-15 | **Status:** Agreed (proposed by Ansh, agreed by Kristika; answers former open point 2)
+- **Decision:** The room-order planner uses `room_prior` only. `room_constraint` is informational: logged and used for E1 scoring, not for search decisions.
+- **Why:** matches the proposal's planner rule, which ranks rooms by P(r | u); for relational commands the LLM already puts most of the probability on the constrained rooms, and the floor keeps every room searchable.
+- **Alternatives:** restricting the search to `room_constraint` (search no longer complete if the constraint is wrong).
+
+### D-007 Room of a detection
+- **Date:** 2026-11-15 | **Status:** Agreed (proposed by Ansh, agreed by Kristika; answers former open point 3)
+- **Decision:** The detector node fills `room_id` in `Detection.msg` with a point-in-polygon test of the detection's map-frame position against the scene graph rooms (empty if outside all rooms). The planner uses it as given.
+- **Why:** the detector already has the map-frame position and the loaded scene graph.
+- **Alternatives:** the planner computes the room (duplicate geometry code in two nodes).
+
 ---
 
 ## Grounding node design
@@ -257,43 +269,43 @@ string source                   # "yolo" or "oracle"
 - **Alternatives:** map origin at the image corner with a separate map-to-world transform (one more TF to keep in sync).
 
 ### D-051 Room polygons are the layout source of truth; floor rectangles are derived
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** In `layout/house_layout.yaml` each room is a counter-clockwise polygon on wall center-lines (so a door lies on the boundary of both rooms it connects), with axis-aligned edges only. LR is the 6-vertex L shape. The generator derives the Gazebo floor tiles by vertical-strip decomposition (cut at every vertex x; inside a strip, pair the crossing horizontal edges in y order). The map does not need room rectangles (the house footprint is filled free, then walls are drawn occupied). The generator rejects non-axis-aligned or clockwise polygons; a test checks that the derived rectangles cover each polygon exactly.
 - **Why:** one room format, the one the scene graph needs; derived rectangles cannot drift from the polygons.
 - **Alternatives:** keep rectangle lists and compute polygons from their union (harder, and the L-shape vertex order would be implicit); list polygons and rectangles separately with a coverage test (two things to edit); allow arbitrary polygons (not needed for this house, and floor tiles would need triangulation).
 
 ### D-052 Exterior door `d_E_out` is closed in the simulation
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** `d_E_out` (between E and `outside`) is at (1.8, 9.0) on E's north outer wall, 1.0 m wide; the position is taken from the placeholder (D-020). The scene graph lists it as a normal door. In Gazebo the gap is filled with a static, door-colored (brown) panel with collision, in model `house_doors`, link `door_d_E_out`: length = width - wall thickness (the clear opening between the wall ends), thickness = wall thickness, height = wall height. On the map the panel is occupied. Rule: every door to `outside` is generated closed (no per-door flag).
 - **Why:** D-002 requires the exterior door in the scene graph, but the robot must not be able to leave the house or plan through it.
 - **Alternatives:** leave it out of the world (world and scene graph disagree); open door (robot and Nav2 can leave the house); explicit `closed: true` flag per door (unnecessary while the only exterior door is always closed).
 
 ### D-053 Door IDs and door data
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** Door IDs are derived from the layout's `connects` pair as `d_<A>_<B>`, in the listed order, with `outside` written as `out` as in the spec example (giving d_E_LR, d_E_K, d_K_LR, d_LR_D, d_LR_B1, d_LR_B2, d_E_out, the same IDs as the placeholder). The door `center` must lie on a wall center-line, and its whole width must lie on one wall segment (the generator rejects it otherwise). Door width stays in the layout only; the scene graph keeps the spec fields `id`, `between`, `position`. Note: wall pieces are extended by half the wall thickness at both ends (unchanged existing behavior), so the clear opening is width - 0.15 m (0.85 m, or 1.25 m for d_LR_D).
 - **Why:** one source for IDs; the spec format stays unchanged.
 - **Alternatives:** explicit IDs in the layout (a second value that can disagree with `connects`).
 
 ### D-054 Generated scene graph file
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** The generator writes `data/scene_graph.json` at the repository root in the "Interface specs" format. Rooms appear in D-001 order (E, K, LR, D, B1, B2), doors in layout order. Polygons are copied from the layout; `area` (shoelace) and `centroid` (area centroid) are computed by the generator and rounded to 4 decimals (well inside the loader's 0.05 tolerance). Format: 2-space indented JSON with each coordinate pair and each `between` pair on one line, LF line endings, trailing newline. All generated files are written as bytes, so the output is identical on Linux and Windows. The centroid of a non-convex room is not guaranteed to lie inside it (for the current LR it does); code that uses centroids as navigation goals must check this.
 - **Why:** Ansh's loader consumes it unchanged; stable formatting makes the drift test byte-exact.
 - **Alternatives:** write into the ROS package and copy (two copies); full precision floats (noisy diffs such as 16.169999999999998).
 
 ### D-055 `config/rooms.yaml` removed
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** `config/rooms.yaml` is no longer generated and is deleted. Its rooms, areas, centroids, doors and door adjacency are in `data/scene_graph.json`. The launch file now reads `robot_start` from `layout/house_layout.yaml`. Dropped fields: `rects` (derivable, D-051), `shares_wall_with` (not used under D-002), door `width` (stays in the layout). `CMakeLists.txt` no longer installs `config/`. A test checks the file stays gone.
 - **Why:** two room formats would drift apart.
 - **Alternatives:** keep it and add a test that it agrees with the scene graph (more to maintain, no consumer needs it).
 
 ### D-056 Generator location and test import
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** The generator stays at `ros/house_sim/scripts/generate_house.py` (the package root is `ros/house_sim/`, flattened from the earlier nested `ros/house_sim/house_sim/` on 2026-11-13), next to the layout and the outputs it owns. It has no ROS imports (standard library + PyYAML; Pillow only for `--preview`). `tests/test_house_sim.py` loads it by file path with `importlib`, so plain `pytest` runs it without ROS sourced and without installing anything new. `pyyaml>=6` is added to the `dev` extras in `pyproject.toml`.
 - **Why:** keeps simulation code out of `lang_grounding` and keeps the ROS package self-contained, while the tests stay ROS-free.
 - **Alternatives:** move it into `src/lang_grounding` (mixes world generation into the grounding library); a second installable package under `src/` (more packaging for one script); pytest `pythonpath` setting (puts the scripts folder on the import path of every test).
 
 ### D-057 Drift test
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** A test generates into a temporary directory and compares byte-for-byte with the committed `worlds/house.sdf`, `maps/house_map.pgm`, `maps/house_map.yaml` and `data/scene_graph.json`. Text files are compared after converting CRLF to LF (so a Windows checkout with `core.autocrlf` passes); the PGM is compared exactly. `maps/house_map_preview.png` is excluded: Pillow output is not guaranteed byte-stable across versions, and the preview is a visual aid only.
 - **Why:** committed outputs can never silently disagree with the layout.
 - **Alternatives:** do not commit generated files (the ROS build and Ansh's tests would then depend on running the generator first).
@@ -301,31 +313,31 @@ string source                   # "yolo" or "oracle"
 ## Phase 3 (continued): AMCL + Nav2 on the known map (Kristika, step 2)
 
 ### D-060 Navigation launch structure
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** `ros/house_sim/launch/house_nav.launch.py` includes `house_world.launch.py` (Gazebo + robot at `robot_start`), `nav2_bringup/bringup_launch.py` (map_server with `maps/house_map.yaml`, AMCL, planner, controller, behaviors, BT navigator; `use_sim_time:=true`, `autostart:=true`) and, optionally, `nav2_bringup/rviz_launch.py`. Arguments: `gui`, `rviz`. No SLAM. Nav2 is used as shipped; only its parameters are changed (D-061).
 - **Why:** smallest launch that gives localization and navigation on the known map; reuses the maintained Nav2 bringup instead of re-listing its nodes.
 - **Alternatives:** own launch listing every Nav2 node (more code, easy to miss a lifecycle node); `nav2_bringup/tb3_simulation_launch.py` (starts its own world and robot).
 
 ### D-061 Nav2 parameters: committed copy of the Jazzy default with marked edits
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** `ros/house_sim/config/nav2_params.yaml` is a copy of `/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml`, committed to the repo. Every change made for this house is marked with a `# house_sim:` comment, and a ROS-free test checks the edited values. The edits are made after the copy exists, so they start from the real installed default. Edits so far (base: nav2_bringup 1.3.13): AMCL `set_initial_pose`/`initial_pose` (D-062) and `laser_max_range` 3.5 (TurtleBot3 LDS); MPPI `vx_max`/`vx_min` ±0.26 and `wz_max` 1.82, and velocity smoother limits [±0.26, 0, ±1.82] (Waffle limits; the default 0.5 m/s makes MPPI plan for speeds the robot cannot reach); `enable_stamped_cmd_vel: true` on every node that publishes velocity (the TurtleBot3 Jazzy bridge takes TwistStamped on `/cmd_vel`). Unchanged on purpose: `robot_radius` 0.22, inflation radius 0.7 and cost scaling 3.0 (the narrowest clear opening, 0.85 m, still leaves a 0.35 m corridor for the robot center); tuning comes with the clutter step.
 - **Why:** reproducible (the file used in experiments is versioned); later tuning (inflation, MPPI or DWB, recoveries; proposal Nov 20–25) edits the same file.
 - **Alternatives:** writing the file from scratch (easy to miss a required key, e.g. the Jazzy docking server); rewriting the installed default at launch time with `RewrittenYaml` (small, but the base file can change with a package update, unnoticed).
 
 ### D-062 Initial pose comes from the layout
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** AMCL starts at the layout's `robot_start` through `set_initial_pose`/`initial_pose` in `nav2_params.yaml`; a test checks that the two agree. The room tour script also sets the same pose through `BasicNavigator.setInitialPose`, because `waitUntilNav2Active` otherwise republishes a zero initial pose.
 - **Why:** the robot is localized at launch without clicking "2D Pose Estimate", and the spawn pose, AMCL and the tour can not disagree.
 - **Alternatives:** manual pose estimate in RViz (not repeatable for headless trials).
 
 ### D-063 One goal per room for navigation checks
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** `ros/house_sim/scripts/room_goals.py` (ROS-free) picks, for each room polygon, the 0.05 m grid point that is farthest from the polygon boundary (wall center-lines), ties broken by distance to the area centroid. Goals are computed at run time from the layout polygons, not stored. Tests check that every goal is inside its own room only and at least 0.5 m from every wall surface and the closed exterior door.
 - **Why:** the centroid of the L-shaped LR is not guaranteed to be inside it (D-054); this point always is, with maximum clearance.
 - **Alternatives:** centroids (can fall outside non-convex rooms); hand-picked goals (another list to keep in sync). Viewpoints for the search (proposal Step 2) are a separate later step and may replace these goals.
 
 ### D-064 Room tour as the Nav2 acceptance check
-- **Date:** 2026-11-13 | **Status:** Proposed
+- **Date:** 2026-11-13 | **Status:** Agreed
 - **Decision:** `ros2 run house_sim room_tour.py` (needs `house_nav.launch.py` running, robot at the start) sends goals to K, LR, D, B2, B1, E in that order with `nav2_simple_commander`, prints the result and time for each room, and exits 1 if any goal fails or times out (default 180 s per goal). This passes through every interior door at least once. It is a manual ROS check, not part of `pytest`.
 - **Why:** the proposal's milestone for this step is reliable navigation into every room on the known map.
 - **Alternatives:** clicking goals in RViz (not repeatable); a launch_testing test (needs Gazebo in CI, too heavy for now).
@@ -333,40 +345,47 @@ string source                   # "yolo" or "oracle"
 ## Phase 3 (continued): target objects (Kristika, step 3)
 
 ### D-070 Placeholder target objects per COCO class
-- **Date:** 2026-11-14 | **Status:** Proposed
-- **Decision:** `ros/house_sim/objects/catalog.yaml` lists the proposal's target classes, keyed by exact COCO name (banana, apple, sandwich, bottle, cup, book, laptop, remote, teddy bear). Each is a simple shape (box, cylinder or sphere) at about real size with a distinct color. Objects are static models with one collision and one visual, so the robot cannot push them away and the touch step can register contact. Realistic models (Gazebo Fuel where available) replace the shapes with the YOLO switch (proposal Nov 20–25).
+- **Date:** 2026-11-14 | **Status:** Agreed (class list updated 2026-11-15)
+- **Decision:** `ros/house_sim/objects/catalog.yaml` has one entry for every class of the detector vocabulary (`configs/vocabulary.json`, D-100), keyed by exact COCO name: banana, apple, orange, sandwich, bottle, cup, bowl, book, laptop, remote, cell phone, teddy bear. A test checks that the catalog and the vocabulary have the same classes. Each is a simple shape (box, cylinder or sphere) at about real size with a distinct color. Objects are static models with one collision and one visual, so the robot cannot push them away and the touch step can register contact. Realistic models (Gazebo Fuel where available) replace the shapes with the YOLO switch (proposal Nov 20–25).
 - **Why:** the oracle detector (used first) does not need realistic appearance; no dependency on downloading models now.
 - **Alternatives:** Fuel models now (network at run time, availability per class not checked yet); dynamic objects (can be pushed or knocked over by the robot, which moves the ground truth).
 
 ### D-071 Scenario files
-- **Date:** 2026-11-14 | **Status:** Proposed
+- **Date:** 2026-11-14 | **Status:** Agreed
 - **Decision:** A scenario is `ros/house_sim/objects/scenarios/<name>.yaml` with a list of objects: `label` (catalog class), `room`, `xy` (map frame) and `yaw`. The room is stored for readability and for later plausible/implausible bookkeeping, and is checked against the polygons. `demo.yaml` places one object of every class in a plausible room. Per-trial random placement (80% plausible, 20% implausible, fixed seeds) belongs to the evaluation harness and is not part of this step.
 - **Why:** a fixed, readable placement for the first end-to-end runs and for Ansh's oracle detector; the harness can later write files in the same format.
 - **Alternatives:** objects baked into `house.sdf` (every placement change needs a regenerated world); random placement now (harness work, out of scope).
 
 ### D-072 Object placement rules
-- **Date:** 2026-11-14 | **Status:** Proposed
+- **Date:** 2026-11-14 | **Status:** Agreed
 - **Decision:** Each object (its footprint circle) must be inside its declared room and at least 0.3 m from wall surfaces and the closed exterior door, 0.5 m from every door gap, 0.6 m from every room tour goal (D-063), 0.8 m from the robot start, and 0.3 m from every other object. `scripts/house_objects.py` checks this before spawning; tests cover each rule.
 - **Why:** most objects are lower than the Waffle's lidar plane, so Nav2's costmaps cannot see them; keeping them off doorways, tour goals and the start keeps navigation from driving into them. 0.5 m from doorways is the proposal's clutter rule.
 - **Alternatives:** no rules (a placement can block a doorway or sit on a goal); adding the depth camera to the costmap (a Nav2 tuning change for the clutter step).
 
 ### D-073 Spawning objects and model names
-- **Date:** 2026-11-14 | **Status:** Proposed (model names are an interface with Ansh's oracle detector)
+- **Date:** 2026-11-14 | **Status:** Agreed
 - **Decision:** `ros2 launch house_sim spawn_objects.launch.py scenario:=demo` spawns a scenario into the running world (`house`) with `ros_gz_sim create`, one call per object, after the placement check. Gazebo model names are `obj_<label>_<k>`, with spaces in the label replaced by underscores and `k` counting objects of the same class from 0 (e.g. `obj_teddy_bear_0`); `house_objects.label_from_model_name` maps a name back to the COCO label.
 - **Why:** objects change per trial without regenerating the world; the name alone tells the oracle detector the class.
 - **Alternatives:** spawning from a Python node through the Gazebo service (more code than the existing `create` tool); names without the class (the oracle would need the scenario file to know the label).
 
+### D-074 Truth files for the oracle detector
+- **Date:** 2026-11-15 | **Status:** Agreed (proposed by Ansh, agreed by Kristika; answers former open point 4)
+- **Decision:** `python ros/house_sim/scripts/house_objects.py [scenario ...]` writes `data/objects_<scenario>.json` (default: every scenario in `objects/scenarios/`) from the same scenario file and placement code the spawner uses. Format: `scenario`, `frame` (`"map"`), `units` (`"m"`) and `objects`, in spawn order, each with `name` (Gazebo model name, D-073), `label` (COCO class), `room`, `position` [x, y, z] (center of the object; z is half its height), `yaw`, `height` and `radius` (footprint circle). Ansh's oracle detector reads this file and filters by the camera's field of view. A test checks that the committed `data/objects_demo.json` matches the generator.
+- **Why:** target objects are static (D-070), so the file stays true for the whole trial; no Gazebo pose bridge needed.
+- **Seeding:** target placements are fixed scenario files, so every method sees the same targets; clutter is seeded (D-092). Random 80/20 target placement (evaluation harness) must also be seeded and write a scenario file, so this truth file covers it.
+- **Alternatives:** object poses from Gazebo through a pose bridge (more moving parts; only needed if objects could move).
+
 ## Phase 3 (continued): search viewpoints (Kristika, step 4)
 
 ### D-080 Viewpoints in the scene graph
-- **Date:** 2026-11-14 | **Status:** Proposed (adds the optional field the spec reserved; Ansh's loader and schema are unchanged)
+- **Date:** 2026-11-14 | **Status:** Agreed
 - **Decision:** The generator adds `"viewpoints": [[x, y], ...]` to every room in `data/scene_graph.json`: 1–3 map-frame positions, sorted by x then y, rounded to 1 mm. At each viewpoint the robot turns 360°; viewpoints have no heading. The loader already ignores unknown fields (D-042), and the JSON Schema does not forbid extra properties, so the graph still validates. Settings live in a `viewpoints` section of `house_layout.yaml` (camera range, wall clearance, maximum per room, grid sizes). `maps/house_map_preview.png` marks viewpoints as green squares.
 - **Why:** the "Interface specs" note reserves this optional field for Kristika's viewpoint generator; one file holds everything the planner needs about rooms.
 - **Alternatives:** a separate viewpoints file (another file to keep in sync with the graph); storing the robot heading too (not needed for a 360° turn).
-- **For Ansh:** if the planner reads viewpoints through `lang_grounding.scene_graph`, the `Room` model and the schema file need an optional `viewpoints` field and a check that each point is inside its room.
+- **Loader side:** D-047 (Ansh) reads the field and checks each viewpoint is inside its room. Order has no meaning (the planner chooses the visiting order); no heading.
 
 ### D-081 Viewpoint coverage model and selection
-- **Date:** 2026-11-14 | **Status:** Proposed
+- **Date:** 2026-11-14 | **Status:** Agreed
 - **Decision:** A floor point counts as seen from a viewpoint if it is within `camera_range` (3.0 m) and the straight line to it stays inside the room polygon (matters for the L-shaped LR). Floor points are sampled every 0.2 m, at least 0.05 m beyond the wall surfaces; candidate viewpoints every 0.25 m, at least 0.5 m from wall surfaces so the robot can turn in place. Selection: the fewest viewpoints (up to 3) that see every floor sample; among those, the set that does so with the smallest range (tried in 0.25 m steps up to 3.0 m), so each viewpoint sits near the middle of what it covers; ties go to the set whose viewpoint closest to a wall is farthest from it, then to grid order. Search is exhaustive over candidate sets, so the result is deterministic and the count is minimal on the grid. Result for this house: E 1, K 2, LR 2, D 1, B1 2, B2 2 (10 in total). The generator stops with an error if a room needs more than 3.
 - **Why:** follows the proposal ("1–3 viewpoints per room, chosen from its polygon so the camera covers the room during a 360° rotation"); the count feeds the planner's search cost.
 - **Assumptions to revisit:** 3.0 m is an assumed detection range for small COCO objects, not measured; occlusion by furniture and clutter is ignored; the camera's minimum range and floor visibility close to the robot are ignored. Tune `camera_range` once the detector is tested.
@@ -375,20 +394,20 @@ string source                   # "yolo" or "oracle"
 ## Phase 3 (continued): clutter (Kristika, step 5)
 
 ### D-090 Clutter types
-- **Date:** 2026-11-14 | **Status:** Proposed
+- **Date:** 2026-11-14 | **Status:** Agreed
 - **Decision:** `ros/house_sim/objects/clutter.yaml` defines three clutter types as static placeholder shapes: box (0.4 m cube), bin (cylinder, 0.15 m radius, 0.5 m tall) and chair (0.45 × 0.45 × 0.85 m box). All are at least 0.3 m tall, above the Waffle's lidar plane, so Nav2's obstacle layers see them. Clutter is never written to the static map. Gazebo model names are `clutter_<type>_<k>`.
 - **Why:** proposal Step 3 ("boxes, chairs, bins", only in the costmaps through the lidar); static so a collision cannot push clutter out of the way unnoticed.
 - **Alternatives:** Fuel furniture models (later, with the realistic target models); dynamic clutter (pushable, changes the trial).
 
 ### D-091 Clutter placement rules and reachability check
-- **Date:** 2026-11-14 | **Status:** Proposed
+- **Date:** 2026-11-14 | **Status:** Agreed
 - **Decision:** Each clutter object (footprint circle) must be inside a room and at least 0.15 m from walls, 0.5 m from every door gap (proposal), 0.5 m from every viewpoint and room tour goal (the robot stops and turns there), 0.8 m from the start, 0.6 m from target objects, and 0.3 m from other clutter. In addition, after each object is placed, a flood fill on a 0.1 m grid (robot radius 0.22 m, the Nav2 value, plus 0.03 m margin) checks that every viewpoint and room tour goal is still reachable from the start, and that every target still has a reachable cell within 0.7 m; a candidate that breaks this is rejected.
 - **Why:** proposal: "kept at least 0.5 m from doorways, so no room becomes unreachable"; the door rule alone does not guarantee this (clutter could close off part of a room or a viewpoint), the flood fill does.
 - **Consequence:** viewpoints are never blocked, so the proposal's recovery case "viewpoint blocked: try the next viewpoint, then skip the room" is not exercised by placed clutter. Narrow passages between clutter can still be costly for Nav2.
 - **Alternatives:** only the doorway rule (rooms can be cut off); allowing clutter on viewpoints (exercises recovery, but makes success rates depend on placement luck).
 
 ### D-092 Random, seeded clutter spawning
-- **Date:** 2026-11-14 | **Status:** Proposed
+- **Date:** 2026-11-14 | **Status:** Agreed
 - **Decision:** `scripts/clutter.py` (ROS-free) draws positions uniformly over the house footprint, a type uniformly from the catalog and a uniform yaw from `random.Random(seed)`, and rejects candidates that break D-091 (up to 1000 tries per object, then an error). The same count and seed give the same placement. `ros2 launch house_sim spawn_clutter.launch.py count:=N seed:=S scenario:=demo` spawns 0–10 objects into the running world and logs where they went; `scenario` names the target objects to keep clear of (`none` for no targets). Collision counting from Gazebo contact events and the per-trial seed list belong to the evaluation harness.
 - **Why:** proposal: "0–10 clutter objects spawned at random free locations", "fixed seed list, so every method sees identical conditions".
 - **Alternatives:** hand-made clutter scenarios (not random); sampling per room (uneven density in small rooms).
@@ -497,11 +516,10 @@ string source                   # "yolo" or "oracle"
 - **Alternatives:** human-readable output (harder to script).
 
 ## Open points to confirm with Kristika
-2. Whether the planner uses `room_prior` only (proposed) and treats `room_constraint` as informational.
-3. Whether `room_id` in the detection message is computed by the detector node (proposed) or by the planner.
-4. Where the oracle detector gets object ground truth (to agree with Ansh): object poses from Gazebo (bridging the world's pose topic, with labels from the `obj_<label>_<k>` model names, D-073), or the scenario file directly (valid while objects are static).
+None at the moment. Former points 1–4 were answered by D-050, D-006, D-007 and D-074.
 
 ## Decision history
+- 2026-11-15: Kristika's answers to Ansh's interface questions: D-006 (planner uses `room_prior` only) and D-007 (detector computes `room_id`) agreed; D-074 (oracle truth files `data/objects_<scenario>.json`) agreed; open points 2–4 closed. D-051 to D-092 promoted to Agreed by Kristika. D-070 updated: catalog extended to the 12-class vocabulary (orange, bowl, cell phone added), so the vocabulary note in D-100 is resolved.
 - 2026-11-14: Phase 4 grounding loop, backends, cache and logging (D-104 to D-115) proposed. Prompt files and the keyword table are placeholders or drafts awaiting the user's text and review.
 - 2026-11-14: D-003, D-020, D-022, D-046 set to Agreed. D-014 wording updated to match D-103 (floored rooms held exactly at the floor; status unchanged). D-047 (optional `viewpoints` field with point-in-polygon check) proposed. Log entries put in numeric order.
 - 2026-11-14: Phase 4 grounding output schema and validator (D-100 to D-103) proposed.

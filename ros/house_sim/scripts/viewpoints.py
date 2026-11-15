@@ -79,7 +79,8 @@ def grid_points(polygon, step, min_clearance):
     for i in range(nx):
         for j in range(ny):
             p = (x0 + (i + 0.5) * step, y0 + (j + 0.5) * step)
-            if point_in_polygon(p, polygon) and boundary_distance(p, polygon) >= min_clearance - _EPS:
+            inside = point_in_polygon(p, polygon)
+            if inside and boundary_distance(p, polygon) >= min_clearance - _EPS:
                 out.append(p)
     return out
 

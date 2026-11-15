@@ -19,8 +19,7 @@ from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 from rclpy.parameter import Parameter
-
-from room_goals import room_goals
+from room_goals import room_goals  # sibling script, installed next to this one
 
 DEFAULT_ORDER = ["K", "LR", "D", "B2", "B1", "E"]
 

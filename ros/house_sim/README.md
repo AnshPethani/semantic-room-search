@@ -95,8 +95,11 @@ ros2 launch house_sim house_nav.launch.py             # or house_world.launch.py
 ros2 launch house_sim spawn_objects.launch.py         # scenario:=demo (default)
 ```
 
-`objects/catalog.yaml` holds the target classes (COCO names) as colored placeholder
-shapes; `objects/scenarios/demo.yaml` places one of each in a plausible room. Gazebo model
+`objects/catalog.yaml` holds the target classes (the 12 COCO names of
+`configs/vocabulary.json`) as colored placeholder shapes; `objects/scenarios/demo.yaml`
+places one of each in a plausible room. The oracle detector's ground truth is
+`data/objects_<scenario>.json`; regenerate it after editing a scenario with
+`python ros/house_sim/scripts/house_objects.py` (from the repository root). Gazebo model
 names are `obj_<label>_<k>` (e.g. `obj_teddy_bear_0`). Placements are checked before
 spawning: inside the declared room, clear of walls (0.3 m), door gaps (0.5 m), room tour
 goals (0.6 m), the start (0.8 m) and each other (0.3 m).

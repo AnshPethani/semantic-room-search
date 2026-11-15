@@ -9,8 +9,11 @@ import os
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import (AppendEnvironmentVariable, DeclareLaunchArgument,
-                            IncludeLaunchDescription)
+from launch.actions import (
+    AppendEnvironmentVariable,
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -54,10 +57,12 @@ def generate_launch_description():
 
         # robot_state_publisher, spawn, and ros_gz bridges (scan, odom, tf, cmd_vel, camera)
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(tb3, 'launch', 'robot_state_publisher.launch.py')),
+            PythonLaunchDescriptionSource(
+                os.path.join(tb3, 'launch', 'robot_state_publisher.launch.py')),
             launch_arguments={'use_sim_time': use_sim_time}.items()),
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(tb3, 'launch', 'spawn_turtlebot3.launch.py')),
+            PythonLaunchDescriptionSource(
+                os.path.join(tb3, 'launch', 'spawn_turtlebot3.launch.py')),
             launch_arguments={'x_pose': LaunchConfiguration('x_pose'),
                               'y_pose': LaunchConfiguration('y_pose')}.items()),
     ])
