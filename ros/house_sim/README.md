@@ -126,7 +126,17 @@ sees it through the lidar. Placement is random but fixed by `seed`, keeps 0.5 m 
 gaps, viewpoints and tour goals, and a reachability check makes sure every viewpoint and
 target can still be reached. Model names are `clutter_<type>_<k>`.
 
-## 8. Changing the house
+## 8. Contact sensor (bumper)
+
+The robot is spawned from `models/turtlebot3_waffle_bumper/model.sdf`, a copy of the
+TurtleBot3 Waffle with a contact sensor on its body. Every contact (targets, clutter,
+walls) is published on ROS `/bumper` (`ros_gz_interfaces/msg/Contacts`):
+
+```bash
+ros2 topic echo /bumper     # prints messages only while something touches the robot body
+```
+
+## 9. Changing the house
 
 Edit `layout/house_layout.yaml` (walls, doors, room polygons, start pose), then,
 from the **repository root** (the scene graph is written to `<repo>/data/`):

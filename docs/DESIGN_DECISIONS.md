@@ -412,6 +412,21 @@ string source                   # "yolo" or "oracle"
 - **Why:** proposal: "0–10 clutter objects spawned at random free locations", "fixed seed list, so every method sees identical conditions".
 - **Alternatives:** hand-made clutter scenarios (not random); sampling per room (uneven density in small rooms).
 
+## Phase 3 (continued): contact sensor (Kristika, step 6)
+
+### D-095 Robot model copy with a contact sensor
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** `ros/house_sim/models/turtlebot3_waffle_bumper/model.sdf` is a copy of `turtlebot3_gazebo` 2.3.7 `models/turtlebot3_waffle/model.sdf` (Apache-2.0, attribution kept), with one marked change: a contact sensor `bumper` on `base_link`, watching the body box `base_collision` (0.265 × 0.265 × 0.089 m), publishing `gz.msgs.Contacts` on gz topic `bumper` at 50 Hz. It reports every contact of the body: targets (touch step), clutter and walls (collision counting in E3). Meshes still come from `model://turtlebot3_common`. The world already loads `gz-sim-contact-system`.
+- **Limit:** the body box starts 0.0135 m above the floor, so the 0.01 m cell phone cannot touch it (the wheels hit it instead); a test lists such classes. For those, the touch step must use the proposal's other criterion (stop within 0.15 m while facing the target).
+- **Why:** proposal Step 4 ("until the bumper reports contact"); the stock simulated Waffle has no contact sensor. Same pattern as D-061: a committed copy with marked edits.
+- **Alternatives:** patching the installed model at launch (depends on the installed file silently); contact sensors on the wheels too (wheel contacts with the floor are constant noise).
+
+### D-096 Own spawn and bridge for the robot
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** `house_world.launch.py` no longer includes `turtlebot3_gazebo/spawn_turtlebot3.launch.py`. It runs the same three nodes itself: `ros_gz_sim create` with the model copy (name `waffle`, z 0.01, and now also the layout's start `yaw`), `ros_gz_bridge parameter_bridge` with `config/robot_bridge.yaml`, and `ros_gz_image image_bridge` for `/camera/image_raw`. `robot_bridge.yaml` is a copy of the upstream `turtlebot3_waffle_bridge.yaml` (marked as such) plus `/bumper` (`ros_gz_interfaces/msg/Contacts`). `robot_state_publisher` still comes from `turtlebot3_gazebo`.
+- **Why:** the upstream spawn launch hard-codes the stock model and its bridge file.
+- **Alternatives:** a second bridge node only for `/bumper` next to the upstream spawn (the upstream spawn would still spawn the stock model without the sensor).
+
 ## Phase 4: Grounding output schema and validator
 
 ### D-100 Vocabulary config and loader
@@ -519,6 +534,7 @@ string source                   # "yolo" or "oracle"
 None at the moment. Former points 1–4 were answered by D-050, D-006, D-007 and D-074.
 
 ## Decision history
+- 2026-11-15: Phase 3 step 6 (contact sensor) decisions D-095, D-096 proposed. Found: the simulated Waffle camera is RGB only (no depth), although the proposal assumes RGB-D.
 - 2026-11-15: Kristika's answers to Ansh's interface questions: D-006 (planner uses `room_prior` only) and D-007 (detector computes `room_id`) agreed; D-074 (oracle truth files `data/objects_<scenario>.json`) agreed; open points 2–4 closed. D-051 to D-092 promoted to Agreed by Kristika. D-070 updated: catalog extended to the 12-class vocabulary (orange, bowl, cell phone added), so the vocabulary note in D-100 is resolved.
 - 2026-11-14: Phase 4 grounding loop, backends, cache and logging (D-104 to D-115) proposed. Prompt files and the keyword table are placeholders or drafts awaiting the user's text and review.
 - 2026-11-14: D-003, D-020, D-022, D-046 set to Agreed. D-014 wording updated to match D-103 (floored rooms held exactly at the floor; status unchanged). D-047 (optional `viewpoints` field with point-in-polygon check) proposed. Log entries put in numeric order.

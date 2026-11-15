@@ -17,10 +17,11 @@ from launch.actions import (
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    # turtlebot3_gazebo's spawn file reads this env var; default to the Waffle.
+    # turtlebot3_gazebo's robot_state_publisher launch reads this env var; default to the Waffle.
     os.environ.setdefault('TURTLEBOT3_MODEL', 'waffle')
 
     pkg = get_package_share_directory('house_sim')
@@ -40,6 +41,7 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         DeclareLaunchArgument('x_pose', default_value=str(start['x'])),
         DeclareLaunchArgument('y_pose', default_value=str(start['y'])),
+        DeclareLaunchArgument('yaw', default_value=str(start.get('yaw', 0.0))),
 
         AppendEnvironmentVariable('GZ_SIM_RESOURCE_PATH', os.path.join(tb3, 'models')),
         AppendEnvironmentVariable('GZ_SIM_RESOURCE_PATH', os.path.join(pkg, 'models')),
@@ -55,14 +57,23 @@ def generate_launch_description():
             launch_arguments={'gz_args': '-g -v2 ', 'on_exit_shutdown': 'true'}.items(),
             condition=IfCondition(gui)),
 
-        # robot_state_publisher, spawn, and ros_gz bridges (scan, odom, tf, cmd_vel, camera)
+        # robot_state_publisher (TF of the robot links) from turtlebot3_gazebo
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(tb3, 'launch', 'robot_state_publisher.launch.py')),
             launch_arguments={'use_sim_time': use_sim_time}.items()),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(tb3, 'launch', 'spawn_turtlebot3.launch.py')),
-            launch_arguments={'x_pose': LaunchConfiguration('x_pose'),
-                              'y_pose': LaunchConfiguration('y_pose')}.items()),
+
+        # Spawn and bridges, as in turtlebot3_gazebo's own spawn launch file, but with our
+        # Waffle copy that has a contact sensor and a bridge file that adds /bumper (D-096).
+        Node(package='ros_gz_sim', executable='create', output='screen',
+             arguments=['-name', 'waffle',
+                        '-file', os.path.join(pkg, 'models', 'turtlebot3_waffle_bumper',
+                                              'model.sdf'),
+                        '-x', LaunchConfiguration('x_pose'), '-y', LaunchConfiguration('y_pose'),
+                        '-z', '0.01', '-Y', LaunchConfiguration('yaw')]),
+        Node(package='ros_gz_bridge', executable='parameter_bridge', output='screen',
+             arguments=['--ros-args', '-p',
+                        f"config_file:={os.path.join(pkg, 'config', 'robot_bridge.yaml')}"]),
+        Node(package='ros_gz_image', executable='image_bridge', output='screen',
+             arguments=['/camera/image_raw']),
     ])
