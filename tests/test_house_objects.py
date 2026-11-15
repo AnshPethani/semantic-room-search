@@ -36,8 +36,10 @@ COCO = {
     "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book",
     "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush",
 }
-PROPOSAL_CLASSES = {"banana", "apple", "sandwich", "bottle", "cup", "book", "laptop", "remote",
-                    "teddy bear"}
+# Ansh's detector vocabulary (12 COCO classes, 2026-11-14). The world must be able to contain
+# every class the LLM may name. To be replaced by reading his vocabulary file after the pull.
+VOCABULARY = {"banana", "apple", "orange", "sandwich", "bottle", "cup", "bowl", "book", "laptop",
+              "remote", "cell phone", "teddy bear"}
 
 
 @pytest.fixture(scope="module")
@@ -61,8 +63,8 @@ def placed(layout, catalog, demo):
 
 
 # ----------------------------------------------------------------- catalog
-def test_catalog_classes_are_the_proposal_coco_classes(catalog):
-    assert set(catalog["classes"]) == PROPOSAL_CLASSES
+def test_catalog_classes_are_the_detector_vocabulary(catalog):
+    assert set(catalog["classes"]) == VOCABULARY
     assert set(catalog["classes"]) <= COCO
 
 
@@ -106,6 +108,27 @@ def test_object_sdf_is_a_static_model_with_one_collision(placed, catalog):
         assert len(link.findall("collision")) == 1 and len(link.findall("visual")) == 1
         shape = catalog["classes"][o["label"]]["shape"]
         assert link.find(f"collision/geometry/{shape}") is not None, o["name"]
+
+
+# ----------------------------------------------------------------- truth files (D-074)
+TRUTH_DEMO = REPO / "data" / "objects_demo.json"
+
+
+def test_truth_file_matches_the_scenario(placed, catalog):
+    t = ho.truth("demo", placed, catalog)
+    assert (t["scenario"], t["frame"], t["units"]) == ("demo", "map", "m")
+    assert [o["name"] for o in t["objects"]] == [o["name"] for o in placed]
+    for entry, o in zip(t["objects"], placed):
+        assert entry["label"] == o["label"] == ho.label_from_model_name(entry["name"])
+        assert entry["position"] == [o["x"], o["y"], o["z"]]
+        assert entry["height"] == pytest.approx(2 * o["z"])
+
+
+def test_committed_truth_file_is_current(placed, catalog):
+    assert TRUTH_DEMO.exists(), "run: python ros/house_sim/scripts/house_objects.py"
+    committed = TRUTH_DEMO.read_bytes().replace(b"\r\n", b"\n")
+    assert committed == ho.dump_truth(ho.truth("demo", placed, catalog)).encode(), \
+        "data/objects_demo.json is stale; run: python ros/house_sim/scripts/house_objects.py"
 
 
 # ----------------------------------------------------------------- placement rules

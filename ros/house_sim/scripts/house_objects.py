@@ -1,11 +1,18 @@
-"""Target objects: catalog, scenario files, placement checks and SDF (D-070 to D-073).
+"""Target objects: catalog, scenario files, placement checks, SDF and truth files (D-070 to D-074).
 
 ROS-free (standard library, PyYAML and the generate_house / room_goals helpers), so the
 placement rules are tested with plain pytest. spawn_objects.launch.py uses place_objects()
 to spawn the objects into the running Gazebo world.
+
+Truth files for the oracle detector (D-074), from the repository root:
+    python ros/house_sim/scripts/house_objects.py           # every scenario
+    python ros/house_sim/scripts/house_objects.py demo      # one scenario
+writes data/objects_<scenario>.json.
 """
 from __future__ import annotations
 
+import argparse
+import json
 import math
 import sys
 from pathlib import Path
@@ -14,6 +21,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from generate_house import (  # noqa: E402
+    PKG,
+    REPO,
     door_on_segment,
     door_panel_box,
     is_exterior,
@@ -178,3 +187,58 @@ def place_objects(layout, catalog, scenario):
                        "z": round(height(spec) / 2, 4), "yaw": float(obj.get("yaw", 0.0)),
                        "radius": r, "sdf": object_sdf(name, spec)})
     return placed
+
+
+# ---------------------------------------------------------------- truth files (D-074)
+def truth(scenario_name, placed, catalog):
+    """Ground truth for the oracle detector: one entry per spawned object, in spawn order.
+
+    position = center of the object in the map frame (z = half its height); height and
+    radius (footprint circle) let the oracle decide what part of the object is in view.
+    """
+    classes = catalog["classes"]
+    return {
+        "scenario": scenario_name,
+        "frame": "map",
+        "units": "m",
+        "objects": [{
+            "name": o["name"],
+            "label": o["label"],
+            "room": o["room"],
+            "position": [o["x"], o["y"], o["z"]],
+            "yaw": o["yaw"],
+            "height": round(height(classes[o["label"]]), 4),
+            "radius": round(o["radius"], 4),
+        } for o in placed],
+    }
+
+
+def dump_truth(t):
+    """2-space JSON, one object per line block, LF line endings, trailing newline."""
+    return json.dumps(t, indent=2) + "\n"
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Write data/objects_<scenario>.json truth files.")
+    ap.add_argument("scenarios", nargs="*", help="scenario names (default: all)")
+    ap.add_argument("--data-dir", default=str(REPO / "data"))
+    args = ap.parse_args(argv)
+
+    scen_dir = PKG / "objects" / "scenarios"
+    names = args.scenarios or sorted(p.stem for p in scen_dir.glob("*.yaml"))
+    layout = load_yaml(PKG / "layout" / "house_layout.yaml")
+    catalog = load_yaml(PKG / "objects" / "catalog.yaml")
+    for name in names:
+        try:
+            placed = place_objects(layout, catalog, load_yaml(scen_dir / f"{name}.yaml"))
+        except (OSError, ObjectError) as exc:
+            print(f"ERROR: scenario {name}: {exc}", file=sys.stderr)
+            return 1
+        out = Path(args.data_dir) / f"objects_{name}.json"
+        out.write_bytes(dump_truth(truth(name, placed, catalog)).encode())
+        print(f"wrote {out} ({len(placed)} objects)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

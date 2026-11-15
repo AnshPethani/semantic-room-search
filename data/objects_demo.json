@@ -1,0 +1,163 @@
+{
+  "scenario": "demo",
+  "frame": "map",
+  "units": "m",
+  "objects": [
+    {
+      "name": "obj_banana_0",
+      "label": "banana",
+      "room": "K",
+      "position": [
+        0.6,
+        0.6,
+        0.02
+      ],
+      "yaw": 0.0,
+      "height": 0.04,
+      "radius": 0.0922
+    },
+    {
+      "name": "obj_apple_0",
+      "label": "apple",
+      "room": "K",
+      "position": [
+        4.5,
+        0.6,
+        0.04
+      ],
+      "yaw": 0.0,
+      "height": 0.08,
+      "radius": 0.04
+    },
+    {
+      "name": "obj_bottle_0",
+      "label": "bottle",
+      "room": "K",
+      "position": [
+        0.6,
+        3.5,
+        0.125
+      ],
+      "yaw": 0.0,
+      "height": 0.25,
+      "radius": 0.035
+    },
+    {
+      "name": "obj_orange_0",
+      "label": "orange",
+      "room": "K",
+      "position": [
+        2.5,
+        0.6,
+        0.04
+      ],
+      "yaw": 0.0,
+      "height": 0.08,
+      "radius": 0.04
+    },
+    {
+      "name": "obj_bowl_0",
+      "label": "bowl",
+      "room": "K",
+      "position": [
+        4.5,
+        3.5,
+        0.03
+      ],
+      "yaw": 0.0,
+      "height": 0.06,
+      "radius": 0.08
+    },
+    {
+      "name": "obj_sandwich_0",
+      "label": "sandwich",
+      "room": "D",
+      "position": [
+        5.7,
+        0.75,
+        0.025
+      ],
+      "yaw": 0.0,
+      "height": 0.05,
+      "radius": 0.0849
+    },
+    {
+      "name": "obj_cup_0",
+      "label": "cup",
+      "room": "D",
+      "position": [
+        8.2,
+        0.75,
+        0.05
+      ],
+      "yaw": 0.0,
+      "height": 0.1,
+      "radius": 0.045
+    },
+    {
+      "name": "obj_laptop_0",
+      "label": "laptop",
+      "room": "LR",
+      "position": [
+        8.2,
+        5.5,
+        0.01
+      ],
+      "yaw": 0.0,
+      "height": 0.02,
+      "radius": 0.2011
+    },
+    {
+      "name": "obj_remote_0",
+      "label": "remote",
+      "room": "LR",
+      "position": [
+        4.0,
+        5.5,
+        0.0125
+      ],
+      "yaw": 0.5,
+      "height": 0.025,
+      "radius": 0.0934
+    },
+    {
+      "name": "obj_book_0",
+      "label": "book",
+      "room": "B1",
+      "position": [
+        11.4,
+        8.4,
+        0.02
+      ],
+      "yaw": 0.3,
+      "height": 0.04,
+      "radius": 0.125
+    },
+    {
+      "name": "obj_cell_phone_0",
+      "label": "cell phone",
+      "room": "B1",
+      "position": [
+        4.0,
+        8.4,
+        0.005
+      ],
+      "yaw": 0.0,
+      "height": 0.01,
+      "radius": 0.0839
+    },
+    {
+      "name": "obj_teddy_bear_0",
+      "label": "teddy bear",
+      "room": "B2",
+      "position": [
+        11.4,
+        0.6,
+        0.12
+      ],
+      "yaw": 0.0,
+      "height": 0.24,
+      "radius": 0.12
+    }
+  ]
+}
