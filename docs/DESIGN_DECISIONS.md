@@ -63,6 +63,7 @@ Entry format: ID, date, status, decision, why, alternatives considered.
 - **Date:** 2026-11-12 | **Status:** Agreed
 - **Decision:** Use a Gemini API model from the free tier. The model name is a config setting, not hardcoded. The API key comes from an environment variable and is never committed.
 - **Notes:** The free-tier quota should be checked in the AI Studio console (Google no longer publishes per-model limits on its docs page). Free-tier requests may be used by Google to improve its products, so prompts contain only made-up commands and the floorplan. Exact model ID to be copied from AI Studio. Final E1 results report one named model.
+- **Note (2026-11-15):** quota checked in AI Studio for `gemini-3.5-flash-lite` (free tier): 15 RPM, 250K TPM, 500 RPD.
 
 ### D-012 Local fallback: Llama via Ollama
 - **Date:** 2026-11-12 | **Status:** Open (model size depends on hardware)
