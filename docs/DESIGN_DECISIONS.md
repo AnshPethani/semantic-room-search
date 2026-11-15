@@ -29,12 +29,14 @@ Entry format: ID, date, status, decision, why, alternatives considered.
 - See "Interface specs" below.
 
 ### D-004 Grounding output format
-- **Date:** 2026-11-12 | **Status:** Proposed (awaiting Kristika)
+- **Date:** 2026-11-12 | **Status:** Agreed
 - See "Interface specs" below.
+- **Note (2026-11-15):** Kristika confirmed on Nov 15 that the planner uses `room_prior` only and that the detector computes `room_id`.
 
 ### D-005 Detection message
-- **Date:** 2026-11-12 | **Status:** Proposed (awaiting Kristika)
+- **Date:** 2026-11-12 | **Status:** Agreed
 - See "Interface specs" below.
+- **Note (2026-11-15):** Kristika confirmed on Nov 15 that the planner uses `room_prior` only and that the detector computes `room_id`.
 
 ### D-006 Planner input from grounding
 - **Date:** 2026-11-15 | **Status:** Agreed (proposed by Ansh, agreed by Kristika; answers former open point 2)
@@ -433,7 +435,7 @@ string source                   # "yolo" or "oracle"
 - **Date:** 2026-11-14 | **Status:** Proposed
 - **Decision:** The detector vocabulary lives in `configs/vocabulary.json` as an object with a `"vocabulary"` list of COCO class names: banana, apple, orange, sandwich, bottle, cup, bowl, book, laptop, remote, cell phone, teddy bear (12 classes, as specified by the user). `load_vocabulary(path=None)` reads it (default: the repo's `configs/vocabulary.json`, found relative to the source tree, so it assumes an editable install or a source checkout). The override is a `path` argument; `build_output_schema` and `validate_grounding` also accept any list of names directly. A vocabulary that is empty, has duplicates, or has non-string entries raises `VocabularyError`.
 - **Why:** D-011/D-013 say the vocabulary is configuration; accepting a list lets tests and experiments swap it without files.
-- **Note:** Kristika's `objects/catalog.yaml` (D-070) has 9 classes and lacks orange, bowl and cell phone; objects for those need to be added on her side if they are to appear in trials (the E1 draft has commands for orange and cell phone).
+- **Note:** Kristika's `objects/catalog.yaml` (D-070) now contains all 12 vocabulary classes: orange, bowl and cell phone were added on 2026-11-15, and a test checks that the catalog and the vocabulary have the same classes.
 - **Alternatives:** hardcoded constant (violates D-013's config intent); a bare JSON list (no room for a description); environment variable for the path (not needed yet).
 
 ### D-101 Output JSON Schema form
@@ -468,6 +470,7 @@ string source                   # "yolo" or "oracle"
 - **Decision:** `configs/grounding.json` holds the settings (loaded and validated by `config.py`, unknown keys rejected): Gemini (`model`, `timeout_s`, `temperature`), Ollama (`model` = `llama3.1:8b`, `host`, `timeout_s`, `temperature`), `floor`, and the paths of the scene graph, vocabulary, keyword table, prompt files, cache directory (`.cache/grounding`) and log file (`logs/grounding.jsonl`; both directories are gitignored). Relative paths resolve against the repository root. The Gemini model is `null` in the file and comes from the `GEMINI_MODEL` environment variable (as in `.env.example`) or from that setting; no Gemini model ID is written in code. The key comes only from `GEMINI_API_KEY`. A missing key or model raises `ConfigError` at start-up; it does not fall back silently. `.env` is not read automatically (it would need another dependency); export the variables (see the README commands in the hand-off).
 - **Why:** D-011 (model name is a config setting; key from the environment) and D-012 (Ollama default is a setting, still Open).
 - **Alternatives:** a `.env` loader such as python-dotenv (extra dependency); defaults inside the code (hardcoded model names).
+- **Note (2026-11-15):** the sentence ".env is not read automatically" is amended by D-120: `.env` is now read automatically by a small standard-library loader, so the export step is no longer needed.
 
 ### D-106 Backend interface and typed errors
 - **Date:** 2026-11-14 | **Status:** Proposed
@@ -476,9 +479,9 @@ string source                   # "yolo" or "oracle"
 - **Alternatives:** one generic error (loses the reason in E1 logs); retrying on timeouts or rate limits (not asked; a rate-limited retry rarely helps).
 
 ### D-107 Gemini backend and schema conversion
-- **Date:** 2026-11-14 | **Status:** Proposed (the schema keywords below are assumptions to check against the current Gemini documentation)
+- **Date:** 2026-11-14 | **Status:** Agreed
 - **Decision:** REST call `POST {base}/v1beta/models/{model}:generateContent` with the key in the `x-goog-api-key` header (never in the URL, body, repr, errors or logs), `systemInstruction`, one user `contents` entry, and `generationConfig` with `temperature` 0, `responseMimeType: application/json` and `responseSchema`. Thought parts in the answer are ignored. `to_gemini_schema()` (pure function, `backends.py`) converts our JSON Schema to the `responseSchema` subset: **kept** `type`, `enum`, `properties`, `required`, `items`, `description`, `minItems`, `maxItems`, `minimum`, `maximum`, `minLength`, `maxLength`; **dropped silently** `$schema`, `$id`, `title`, `additionalProperties`, `uniqueItems`; **rewritten** type names to upper case (`string` to `STRING`) and `anyOf: [{type: null}, X]` to X with `nullable: true`; **rejected with an error** anything else (other `anyOf` shapes, `const`, `$ref`, `oneOf`, `not`, unknown keywords). Enums are kept everywhere. The validator still enforces what the dropped keywords expressed (no extra properties, unique entries).
-- **Assumed, not verified:** that `responseSchema` (not `responseJsonSchema`) is the field to use; that upper-case type names are accepted or required in REST; that `nullable`, `minimum`, `maximum`, `minItems`, `maxLength` are supported; that `additionalProperties` and `uniqueItems` are not supported; that no `propertyOrdering` is needed (not sent).
+- **Verified live on 2026-11-15** with one easy command ("find the banana") against `gemini-3.5-flash-lite`: `responseSchema` was accepted, upper-case type names were accepted, `nullable` was accepted, the dropped keywords were harmless, and the answer was valid on the first try. Still untested: relational commands, the retry path against the real API, and free-tier rate limits.
 - **Why:** D-013 (enums in the schema) and the open point in D-101 about Gemini's subset.
 - **Alternatives:** `responseJsonSchema` (accepts more of JSON Schema, but its support depends on model and API version); keeping `anyOf` (not reliably supported); dropping unknown keywords silently (hides schema changes).
 
@@ -495,7 +498,7 @@ string source                   # "yolo" or "oracle"
 - **Alternatives:** unittest.mock objects (more verbose, no offline CLI use).
 
 ### D-110 Prompt builder and prompt files
-- **Date:** 2026-11-14 | **Status:** Proposed (the files are PLACEHOLDERS; the user supplies the real text)
+- **Date:** 2026-11-14 | **Status:** Proposed (amended by D-116: the real prompt files replaced the placeholders and use a different format)
 - **Decision:** `configs/prompts/system.md` is the system template and must contain `{scene_graph}`, `{vocabulary}` and `{examples}` (a template missing one is a `ConfigError`); filling is single-pass, so inserted text is never substituted again. `configs/prompts/fewshot.json` is `{"examples": [{"command", "response"}]}`; examples are rendered into the system prompt as `Example N / Command / Response (JSON)`. The user prompt is `Command: <command>`. The scene graph text is `render_for_prompt` (D-044) and the vocabulary a comma-separated list from the config. The retry prompt is the original user prompt plus the validator's errors as a bullet list and a request for a corrected JSON object. The placeholder example is "search the dining area for a bowl" (not an E1 command). Checking the real examples against the E1 commands (D-017) is not automated yet.
 - **Why:** D-017; the backend interface carries only a system and a user prompt, so examples go in the system prompt.
 - **Alternatives:** examples as chat turns (needs a message list in the backend interface); Python `str.format` (clashes with JSON braces).
@@ -530,10 +533,87 @@ string source                   # "yolo" or "oracle"
 - **Why:** quick manual check and demo of each backend.
 - **Alternatives:** human-readable output (harder to script).
 
+### D-116 Prompt builder follows the real prompt files (amends D-110)
+- **Date:** 2026-11-15 | **Status:** Agreed
+- **Decision:** The builder was changed to match the user's `configs/prompts/system.md` and `fewshot.json` (the files are not edited). The system template must contain `{scene_graph}` and `{vocabulary}`; `{examples}` is now optional. When the template has no `{examples}`, the few-shot examples are appended to the end of the filled system prompt under a heading `## Examples` plus one line ("Each example shows a command and the complete JSON response expected for it."), then each example as `Example N`, `Command: ...`, `Response: <JSON>`; with no examples nothing is appended. `fewshot.json` is a JSON list of `{command, response}` objects, or (amended 2026-11-15, after the user's file changed to this layout) an object `{"examples": [...]}` holding that list; both are accepted, and `response` is the full expected JSON output. An empty list is allowed. The cache key uses the rendered system prompt, so it still changes when the examples change (D-113).
+- **Why:** the user's files define the format; the backend interface carries only a system and a user prompt, so the examples stay in the system prompt.
+- **Alternatives:** editing the user's files to add `{examples}` (not allowed); sending the examples as chat turns (needs a message list in the backend interface); appending them without a heading (the model could not tell where the rules end).
+
+### D-117 E1 command file and its automated checks
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** `data/e1_commands.json` holds the E1 commands (`id`, `type` of explicit, category, need or relational, `command`, `expected_constraint` as a list of room IDs or null). Tests in `tests/test_e1_data.py` check: (1) D-017: no few-shot command equals an E1 command after lowercasing, removing punctuation and collapsing whitespace, and none has a token-set Jaccard similarity of 0.6 or more with one, after removing a fixed list of English stop words (the threshold is inclusive); (2) every vocabulary class is named in at least one E1 command (whole word or phrase, optional plural `s`/`es`); (3) every `expected_constraint` room ID exists in `data/scene_graph.json`. A further test checks that every few-shot response passes the validator against `data/scene_graph.json` and `configs/vocabulary.json`. The checking helpers live in the test file, not in the package.
+- **Why:** D-017 must be enforced by a check, not by memory; the other checks catch typos and coverage gaps in the test set.
+- **Alternatives:** a similarity measure over embeddings (not deterministic, extra dependency); exact-match only (misses reworded duplicates).
+
+### D-118 E1 plausibility labels
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** E1 labels live in `data/e1_labels_<person>.csv`, one file per labeler, with the columns `id, command, E, K, LR, D, B1, B2, notes`; a room column holds 1 if the room is plausible for the command and is empty or 0 otherwise. For commands that name or describe rooms, only rooms that satisfy the description may be labeled plausible. `expected_constraint` in `e1_commands.json` follows D-002 (neighbors are door-connected).
+- **Why:** labels are made independently and then reconciled; one fixed format makes them comparable and scriptable, and the room-description rule keeps labels consistent with the constraint the grounding is supposed to produce.
+- **Alternatives:** labels inside `e1_commands.json` (an earlier draft; separate files keep the two labelers independent).
+
+### D-119 E1 set: strict vocabulary coverage, 39 commands
+- **Date:** 2026-11-15 | **Status:** Agreed
+- **Decision:** Every vocabulary class must be named (as a word or phrase, optional plural) by at least one command in `data/e1_commands.json`; the test `test_every_vocabulary_class_appears_in_an_e1_command` stays strict, with no allowance for classes that are only implied by a category command. The E1 set is now 39 commands (the original 36 plus explicit commands for apple, sandwich and bowl). The count is recorded here for reference only: no test or document asserts it, so adding or removing a command needs no test change.
+- **Why:** an E1 set that never names a class cannot show whether the grounding handles it; the explicit commands close the gap found by the coverage test (D-117).
+- **Alternatives:** counting implied coverage through category commands (cannot be checked automatically); asserting the exact count in a test (breaks on every edit of the set).
+
+### D-120 `.env` loader (amends D-105)
+- **Date:** 2026-11-15 | **Status:** Agreed
+- **Decision:** `src/lang_grounding/env.py` provides `load_env_file(path=None)` (standard library only). It reads `NAME=value` lines; blank lines and full-line `#` comments are ignored; an optional `export ` prefix is accepted; matching single or double quotes around a value are removed (no escape processing); an unquoted value ends at whitespace followed by `#` (inline comment); there is no variable expansion; a value may contain `=`. Variables already set in the environment are never overridden (even if set to an empty string); within one file a later line for the same name wins. A missing file is not an error. A malformed line (no `=`, invalid name, unterminated quote, text after a closing quote) raises `ConfigError` naming the file and line number only: the message never contains the line, the name or the value, since a malformed line can be a secret pasted without its name. The whole file is parsed before anything is set, so a malformed file changes nothing. The default file is `.env` at the repository root; a relative `--env-file` path is relative to the repository root too (as in D-105). `load_config()` calls the loader first (so library users and the CLI both get it), and the CLI passes `--env-file`. `tests/conftest.py` redirects the default path during tests so that a developer's real `.env` is never read by the test suite.
+- **Why:** removes the manual export step without adding python-dotenv; keeping secrets out of error messages matters because the file holds the API key.
+- **Alternatives:** python-dotenv (extra dependency, more features than needed); loading only in the CLI (library callers would still need exports); letting `.env` override the shell (surprising, and makes one-off overrides impossible).
+
+### D-121 E1 label tool: validation and comparison
+- **Date:** 2026-11-15 | **Status:** Agreed
+- **Decision:** `src/lang_grounding/e1_labels.py` (pure Python) with `python -m lang_grounding.e1_labels validate <file>` and `compare <A> <B>`; options `--commands` (default `data/e1_commands.json`) and `--graph` (default from the config). A label CSV needs the columns `id`, `command` and exactly the scene graph's room IDs (any order); `notes` is optional; any other column, a duplicate column, or an empty file is an error. Cells are read with whitespace stripped. **Errors:** a command ID without a row, an unknown ID (wrong ID), a duplicate row, a command text that differs from `e1_commands.json` (compared after collapsing whitespace, case-sensitive), a cell other than `1` or blank, a row with no room labeled, a row with more cells than the header, and a labeled room outside `expected_constraint` (the message names the room and says that "next to" means connected by a door, D-002, and that rooms that only share a wall do not count). **Warning, not error:** more than 3 rooms labeled in a row. `compare` first validates both files and refuses to compare if either has errors; it then reports overall cell agreement (agreeing room cells over commands times rooms), the per-command Jaccard (and its mean, and the number of identical commands), and a table of the disagreeing commands (id, command, rooms only in A, rooms only in B, Jaccard). Neither command writes any file. Exit codes: 0 fine (warnings allowed), 1 a label file is invalid or unreadable, 2 the command file or scene graph cannot be loaded.
+- **Why:** D-118 (one label file per labeler, then reconciled) needs a check that catches typos and violations of the room-description rule before agreement is computed, and the comparison feeds the reconciliation.
+- **Alternatives:** an `id`-only match without the command text (misses rows pasted in the wrong order); treating more than 3 rooms as an error (the guideline is "aim for", not a limit); computing agreement with Cohen's kappa (cells are mostly blank, so kappa is unstable here; raw agreement plus Jaccard is easier to read).
+
+### D-122 E1 labeling guideline and reconciled file
+- **Date:** 2026-11-15 | **Status:** Agreed
+- **Decision:** A room is labeled plausible (`1`) where you would expect the object in an ordinary home, not merely where it could be; aim for 1 to 3 rooms per command. For category and need commands, the labels are the union of the rooms of all matching objects. For relational commands, the labels are that union restricted to the rooms the description allows (`expected_constraint`, D-002), or the allowed rooms themselves if the union and the allowed rooms do not overlap. The reconciled labels, after the two labelers compare their files, are `data/e1_labels_final.csv` (same format as D-118).
+- **Why:** consistent labels across labelers and command types; the restriction keeps relational labels in line with the constraint the grounding is supposed to produce (D-118).
+- **Alternatives:** labeling every room where the object could possibly be (nearly every room, so the labels would say little); a separate file per command type (harder to compare).
+
+### D-123 `GroundOutcome` reports the fallback reason and the backend latency
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** `GroundOutcome` has two new fields, also in `to_dict()` and in every JSONL log record: `fallback_reason` (only when `source` is `fallback`: `backend_error` if the last thing that happened was a backend error of any kind, including a malformed response envelope or a backend error during the retry; `invalid_output` if the backend answered twice and both answers failed validation) and `backend_latency_s` (only for `source` `llm`: the backend latency of the successful attempt, without a failed first attempt). `latency_s` stays the wall-clock time of the whole call. Cache hits have neither. The validator and the flow of `ground()` are unchanged.
+- **Why:** E1 must re-run commands that failed for backend reasons but count invalid output as a real LLM failure, and it must report the latency of the answer itself, not of the retries.
+- **Alternatives:** parsing the `errors` strings (fragile); summing or averaging the per-attempt latencies (mixes failed and successful calls).
+
+### D-124 `names_only` scene-graph rendering (the E1 ablation)
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** `PromptBuilder` has a `scene_graph_style`, `"full"` (default, the existing `render_for_prompt`, unchanged) or `"names_only"` (new `render_names_only`), selected with `PromptBuilder.with_scene_graph_style()`. `names_only` renders "The building has N rooms:" and one `- ID: name` line per room: no areas, no doors or adjacency, no exterior-door note, and no definition of "next to". Everything else in the system prompt (the template text, vocabulary, few-shot examples) is the same, so the ablation changes only the building description. The few-shot examples are not changed for the ablation, so they still show the answers for the real layout.
+- **Why:** the proposal's E1 ablation (the LLM with and without the scene graph).
+- **Alternatives:** dropping the building description entirely (the model would not even know the room IDs); also removing adjacency text from the template (would change the template, not just the description).
+
+### D-125 E1 methods, scoring and aggregation
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** `src/lang_grounding/e1.py`, CLI `python -m lang_grounding.e1 run`. Methods: `keyword` (the keyword table, no backend), `uniform` (equal prior), and `gemini_full`, `gemini_names_only`, `ollama_full`, `ollama_names_only`; the order given is the order run. Inputs: `data/e1_commands.json` and `--labels` (default `data/e1_labels_final.csv`); the label validator (D-121) runs first and the experiment refuses to run, writing nothing, if it reports errors (warnings are printed). Scoring per command and method: rooms ranked by `room_prior`; top-1 hit = the top room is labeled plausible; top-2 hit = at least one of the top two is. Tied rooms at the cut-off are scored with the expected value under random tie-breaking, in one function (`topk_hit`; ties within 1e-9): a uniform prior with 2 labeled rooms of 6 scores 2/6 for top-1 and 0.6 for top-2. Constraint check, LLM methods only: for a command with an `expected_constraint`, the LLM's `room_constraint` must equal it as a set; for any other command it must be null. Both rates are reported ("constraint match" and "constraint null"). Latency is the backend latency of the successful attempt (D-123). Aggregates per method, overall and per command type: top-1, top-2, both constraint rates, mean, median and p95 latency (linear interpolation, answered commands only), number of fallback rows, and number and rate of invalid-output rows. A command that never gets an LLM answer (invalid output, or backend errors through the last pass) is a miss in every rate, and is listed separately; the keyword-fallback result of such a call is never scored as an LLM result (its row has no ranking, targets or latency). The summary also has a full-versus-names-only table per provider and a hosted-versus-local latency table (all answered calls of a provider pooled).
+- **Why:** the E1 definition in the proposal, with misses counted honestly; expected-value tie handling makes the uniform baseline well defined.
+- **Alternatives:** breaking ties by room order (would make the uniform baseline depend on the order of the room list); counting fallback results as LLM answers (hides LLM failures).
+
+### D-126 Pacing, re-runs and the cache in E1
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** E1 LLM runs never read or write the cache (`ground()` is called with `cache=None`), so latency is real. Calls to one provider start at least `--min-interval-s` (default 6) apart, tracked per provider and counted from the start of the previous call (a slow call already used up the wait); the clock and the sleep function are injectable. If `ground()` returns a fallback with `fallback_reason` `backend_error` (timeout, rate limit, network, malformed response), the command is re-run after a wait of `--backoff-s` (default 30, my choice) doubled for every further pass, up to `--max-passes` (default 3) passes in total. A fallback with `invalid_output` is not re-run: it is a real LLM failure, counted as a miss and reported through the invalid-output rate. Passes are visible in the per-command CSV and in `calls.jsonl`. With `--dry-run` there is no waiting.
+- **Why:** the Gemini free tier limits the request rate; re-running only transport failures keeps the LLM's own mistakes in the results.
+- **Alternatives:** pacing all providers together (would slow the local model for no reason); re-running invalid output (would hide an unreliable model).
+
+### D-127 E1 outputs and dry run
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** Each run writes `results/e1/<UTC timestamp>/` (`--out-dir` changes the parent; the folder is meant to be tracked in git): `calls.jsonl` (one record per call, written as the run goes: the `ground()` log record, with raw responses and validation errors, plus the method, command ID, type and pass; baseline rows are included), `per_command.csv` (columns id, type, method, source, attempts, top1, top2, constraint_ok, latency_s, ranked_rooms, targets, rationale, and two extra columns, fallback_reason and passes; fractional top-1/top-2 values are tie scores), `summary.md` (the tables above, the settings, the models used, the commands without an LLM answer, and the scoring rules) and `failures.md` (every top-1 miss with the command, the labeled rooms, the ranking with probabilities, the rationale, a constraint mismatch if any, or the reason there was no LLM answer). The paths are printed at the end. `--dry-run` replaces the LLM backends by the fake backend and says "DRY RUN" in the summary; it is for checking the pipeline and its numbers mean nothing. Exit codes: 0 done, 1 the label file failed validation, 2 setup or option errors.
+- **Why:** the outputs named in the E1 request; a log written as the run goes survives an interrupted run.
+- **Alternatives:** one summary file only (no data for the failure analysis); writing the CSV incrementally too (only `calls.jsonl` is, to keep the writing simple).
+
 ## Open points to confirm with Kristika
 None at the moment. Former points 1–4 were answered by D-050, D-006, D-007 and D-074.
 
 ## Decision history
+- 2026-11-15: D-116, D-119, D-120, D-121 and D-122 set to Agreed. The vocabulary note in D-100 fixed (the catalog now has all 12 classes).
+- 2026-11-15: E1 experiment runner (D-125 to D-127), the `names_only` ablation rendering (D-124) and the fallback reason and backend latency fields (D-123) proposed.
+- 2026-11-15: D-107 set to Agreed (Gemini schema conversion verified live with one easy command; relational commands, retries and free-tier rate limits still untested). E1 label tool (D-121) and labeling guideline (D-122) proposed.
+- 2026-11-15: E1 set is 39 commands with strict vocabulary coverage (D-119); `.env` is now read automatically by a standard-library loader (D-120, amends the ".env is not read" sentence in D-105). Both Proposed.
+- 2026-11-15: D-004 and D-005 set to Agreed (Kristika confirmed on Nov 15 that the planner uses `room_prior` only and that the detector computes `room_id`). Prompt builder amended to the real prompt files (D-116). E1 command checks (D-117) and E1 label format (D-118) proposed.
 - 2026-11-15: Phase 3 step 6 (contact sensor) decisions D-095, D-096 proposed. Found: the simulated Waffle camera is RGB only (no depth), although the proposal assumes RGB-D.
 - 2026-11-15: Kristika's answers to Ansh's interface questions: D-006 (planner uses `room_prior` only) and D-007 (detector computes `room_id`) agreed; D-074 (oracle truth files `data/objects_<scenario>.json`) agreed; open points 2–4 closed. D-051 to D-092 promoted to Agreed by Kristika. D-070 updated: catalog extended to the 12-class vocabulary (orange, bowl, cell phone added), so the vocabulary note in D-100 is resolved.
 - 2026-11-14: Phase 4 grounding loop, backends, cache and logging (D-104 to D-115) proposed. Prompt files and the keyword table are placeholders or drafts awaiting the user's text and review.

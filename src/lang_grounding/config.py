@@ -63,7 +63,15 @@ class GroundingConfig(BaseModel):
         return path if path.is_absolute() else REPO_ROOT / path
 
 
-def load_config(path: str | Path | None = None) -> GroundingConfig:
+def load_config(
+    path: str | Path | None = None, *, env_file: str | Path | None = None
+) -> GroundingConfig:
+    """Load the settings. Also loads the .env file first (D-120), so keys in it are visible to
+    the backends; variables already set in the environment win. `env_file` overrides the
+    default `.env` at the repository root."""
+    from lang_grounding.env import load_env_file  # here, not at the top: env imports this module
+
+    load_env_file(env_file)
     p = Path(path) if path is not None else DEFAULT_CONFIG_PATH
     try:
         text = p.read_text(encoding="utf-8")

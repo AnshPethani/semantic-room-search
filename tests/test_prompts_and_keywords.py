@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -46,33 +47,57 @@ def test_bad_config(tmp_path):
 
 # ----------------------------------------------------------------- prompts
 
-def test_placeholder_prompt_files_build():
-    builder = PromptBuilder.from_config(load_config())
+def test_real_prompt_files_build():
+    config = load_config()
+    builder = PromptBuilder.from_config(config)
+    examples = load_fewshot(config.resolve(config.paths.fewshot))
+    assert examples and builder.examples == tuple(examples)
+    assert "{scene_graph}" in builder.system_template
+    assert "{vocabulary}" in builder.system_template
+
+    # Works whether system.md has an {examples} placeholder or not (D-116): either way every
+    # example appears in the final system prompt and no placeholder is left unfilled.
     prompts = builder.build("  find something  ", GRAPH, VOCAB)
-    assert "PLACEHOLDER" in builder.system_template
     assert render_for_prompt(GRAPH) in prompts.system
     assert ", ".join(VOCAB) in prompts.system
-    assert "PLACEHOLDER: search the dining area for a bowl" in prompts.system
-    assert "{scene_graph}" not in prompts.system and "{examples}" not in prompts.system
+    for placeholder in ("{scene_graph}", "{vocabulary}", "{examples}"):
+        assert placeholder not in prompts.system
+    for ex in examples:
+        assert f"Command: {ex.command}" in prompts.system
+        assert json.dumps(ex.response, ensure_ascii=False) in prompts.system
     assert prompts.user == "Command: find something"
 
 
-def test_placeholder_fewshot_examples_pass_the_validator():
+def test_every_fewshot_response_passes_the_validator():
+    """Each few-shot response must be a valid answer for the real graph and vocabulary."""
     config = load_config()
+    graph = load_scene_graph(config.resolve(config.paths.scene_graph))
+    vocabulary = load_vocabulary(config.resolve(config.paths.vocabulary))
     examples = load_fewshot(config.resolve(config.paths.fewshot))
     assert examples
     for ex in examples:
-        assert isinstance(validate_grounding(ex.response, GRAPH, VOCAB), GroundingResult)
+        outcome = validate_grounding(ex.response, graph, vocabulary)
+        assert isinstance(outcome, GroundingResult), f"{ex.command!r}: {outcome}"
 
 
-def test_fewshot_file_has_placeholder_marker():
-    text = (ROOT / "configs" / "prompts" / "fewshot.json").read_text()
-    assert "PLACEHOLDER" in text
-
-
-def test_template_must_contain_all_placeholders():
+def test_template_needs_scene_graph_and_vocabulary_but_not_examples():
     with pytest.raises(ConfigError, match="missing placeholder"):
         PromptBuilder("only {scene_graph} here")
+    with pytest.raises(ConfigError, match="missing placeholder"):
+        PromptBuilder("only {vocabulary} here")
+    builder = PromptBuilder("graph {scene_graph} vocab {vocabulary}")
+    system = builder.build("c", GRAPH, ["one"]).system
+    assert "vocab one" in system and "## Examples" not in system  # no examples, nothing added
+
+
+def test_examples_are_appended_when_the_template_has_no_placeholder():
+    example = FewShotExample("my command", {"targets": ["x"]})
+    builder = PromptBuilder("graph {scene_graph} vocab {vocabulary}\n", [example])
+    system = builder.build("c", GRAPH, ["one"]).system
+    assert system.startswith("graph ")
+    assert system.rstrip().endswith('Response: {"targets": ["x"]}')
+    assert system.count("## Examples") == 1
+    assert "Command: my command" in system
 
 
 def test_examples_are_rendered_and_substitution_is_single_pass():
@@ -91,16 +116,38 @@ def test_no_examples_renders_none():
 
 @pytest.mark.parametrize("content", [
     "not json",
-    "[]",
+    '"just a string"',
+    '{"other": []}',  # an object needs an "examples" key
     '{"examples": "x"}',
-    '{"examples": [{"command": "", "response": {}}]}',
-    '{"examples": [{"command": "a", "response": []}]}',
+    '["just a string"]',
+    '[{"command": "", "response": {}}]',
+    '[{"command": "a", "response": []}]',
+    '[{"command": "a"}]',
+    '{"examples": [{"command": "a"}]}',
 ])
 def test_bad_fewshot_files(tmp_path, content):
     p = tmp_path / "f.json"
     p.write_text(content)
     with pytest.raises(ConfigError):
         load_fewshot(p)
+
+
+@pytest.mark.parametrize("content", ["[]", '{"examples": []}'])
+def test_empty_fewshot_is_allowed(tmp_path, content):
+    p = tmp_path / "f.json"
+    p.write_text(content)
+    assert load_fewshot(p) == []
+
+
+def test_fewshot_accepts_a_bare_list_and_an_examples_object(tmp_path):
+    items = [{"command": "a command", "response": {"targets": ["x"]}}]
+    as_list = tmp_path / "list.json"
+    as_list.write_text(json.dumps(items))
+    as_object = tmp_path / "object.json"
+    as_object.write_text(json.dumps({"examples": items}))
+    expected = [FewShotExample("a command", {"targets": ["x"]})]
+    assert load_fewshot(as_list) == expected
+    assert load_fewshot(as_object) == expected
 
 
 def test_retry_prompt_appends_errors():

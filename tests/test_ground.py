@@ -314,3 +314,58 @@ def test_cli_gemini_without_key_is_a_config_error(monkeypatch, capsys):
 def test_cli_empty_command(capsys):
     assert main(["  ", "--no-cache", "--no-log"]) == 2
     assert "ERROR" in capsys.readouterr().err
+
+
+# ----------------------------------------------------------------- fallback reason, backend latency
+
+def test_llm_outcome_reports_the_backend_latency_of_the_successful_attempt():
+    backend = FakeBackend([BAD_RESPONSE, GOOD_RESPONSE], latency_s=0.25)
+    outcome = ground(COMMAND, GRAPH, VOCAB, backend, prompts=builder(), keyword_table=TABLE)
+    assert outcome.source == "llm" and outcome.attempts == 2
+    assert outcome.backend_latency_s == 0.25  # one attempt, not the 0.5 s of both
+    assert outcome.fallback_reason is None
+    assert outcome.to_dict()["backend_latency_s"] == 0.25
+    assert outcome.to_dict()["fallback_reason"] is None
+
+
+@pytest.mark.parametrize("error", [
+    BackendTimeoutError("slow"), BackendRateLimitError("quota"), BackendResponseError("garbled"),
+])
+def test_fallback_reason_backend_error(error):
+    outcome, _ = run([error])
+    assert outcome.source == "fallback"
+    assert outcome.fallback_reason == "backend_error"
+    assert outcome.backend_latency_s is None
+
+
+def test_fallback_reason_invalid_output():
+    outcome, _ = run([BAD_RESPONSE, BAD_RESPONSE])
+    assert outcome.fallback_reason == "invalid_output"
+    assert outcome.backend_latency_s is None
+
+
+def test_fallback_reason_when_the_retry_hits_a_backend_error():
+    outcome, _ = run([BAD_RESPONSE, BackendTimeoutError("slow")])
+    assert outcome.source == "fallback" and outcome.attempts == 2
+    assert outcome.fallback_reason == "backend_error"  # the last thing that happened
+
+
+def test_cache_hit_has_no_fallback_reason_or_backend_latency(tmp_path):
+    cache = GroundingCache(tmp_path)
+    run([GOOD_RESPONSE], cache=cache)
+    outcome, _ = run([], cache=cache)
+    assert outcome.source == "cache"
+    assert outcome.fallback_reason is None and outcome.backend_latency_s is None
+
+
+def test_log_records_the_fallback_reason_and_backend_latency(tmp_path):
+    log = tmp_path / "g.jsonl"
+    logger = GroundingLogger(log)
+    run([BAD_RESPONSE, BAD_RESPONSE], logger=logger)
+    run([BackendTimeoutError("slow")], logger=logger)
+    ground(COMMAND, GRAPH, VOCAB, FakeBackend([GOOD_RESPONSE], latency_s=0.25), logger=logger,
+           prompts=builder(), keyword_table=TABLE)
+    invalid, backend_error, ok = read_log(log)
+    assert invalid["fallback_reason"] == "invalid_output" and invalid["backend_latency_s"] is None
+    assert backend_error["fallback_reason"] == "backend_error"
+    assert ok["fallback_reason"] is None and ok["backend_latency_s"] == 0.25

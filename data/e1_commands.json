@@ -1,0 +1,262 @@
+{
+  "description": "E1 grounding test commands. expected_constraint follows D-002 (neighbors = door-connected); null means no room constraint. Plausible-room labels are kept separately in e1_labels_*.csv.",
+  "commands": [
+    {
+      "id": "e1_01",
+      "type": "explicit",
+      "command": "find the banana",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_02",
+      "type": "explicit",
+      "command": "find the remote",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_03",
+      "type": "explicit",
+      "command": "where is the laptop",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_04",
+      "type": "explicit",
+      "command": "find my cup",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_05",
+      "type": "explicit",
+      "command": "find the teddy bear",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_06",
+      "type": "explicit",
+      "command": "find the book",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_07",
+      "type": "explicit",
+      "command": "find the bottle",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_08",
+      "type": "explicit",
+      "command": "locate the cell phone",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_09",
+      "type": "explicit",
+      "command": "find the orange",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_10",
+      "type": "category",
+      "command": "find me food",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_11",
+      "type": "category",
+      "command": "find a piece of fruit",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_12",
+      "type": "category",
+      "command": "find something to drink from",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_13",
+      "type": "category",
+      "command": "find some electronics",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_14",
+      "type": "category",
+      "command": "find a toy",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_15",
+      "type": "category",
+      "command": "find something to read",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_16",
+      "type": "category",
+      "command": "find some tableware",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_17",
+      "type": "category",
+      "command": "find a beverage container",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_18",
+      "type": "category",
+      "command": "find a device with a screen",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_19",
+      "type": "need",
+      "command": "I'm thirsty",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_20",
+      "type": "need",
+      "command": "I'm hungry",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_21",
+      "type": "need",
+      "command": "I want to read",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_22",
+      "type": "need",
+      "command": "I need to make a call",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_23",
+      "type": "need",
+      "command": "I want to watch TV",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_24",
+      "type": "need",
+      "command": "I need to get some work done",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_25",
+      "type": "need",
+      "command": "I want a snack",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_26",
+      "type": "need",
+      "command": "my child wants something to cuddle",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_27",
+      "type": "need",
+      "command": "I need to check my email",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_28",
+      "type": "relational",
+      "command": "check the room next to the kitchen for a cup",
+      "expected_constraint": [
+        "E",
+        "LR"
+      ]
+    },
+    {
+      "id": "e1_29",
+      "type": "relational",
+      "command": "look in the bedroom next to the living room for a book",
+      "expected_constraint": [
+        "B1",
+        "B2"
+      ]
+    },
+    {
+      "id": "e1_30",
+      "type": "relational",
+      "command": "find the remote in a room connected to the entry hall",
+      "expected_constraint": [
+        "K",
+        "LR"
+      ]
+    },
+    {
+      "id": "e1_31",
+      "type": "relational",
+      "command": "find a banana in the room next to the dining area",
+      "expected_constraint": [
+        "LR"
+      ]
+    },
+    {
+      "id": "e1_32",
+      "type": "relational",
+      "command": "look for the laptop in a bedroom",
+      "expected_constraint": [
+        "B1",
+        "B2"
+      ]
+    },
+    {
+      "id": "e1_33",
+      "type": "relational",
+      "command": "find something to eat in the room next to the entry hall",
+      "expected_constraint": [
+        "K",
+        "LR"
+      ]
+    },
+    {
+      "id": "e1_34",
+      "type": "relational",
+      "command": "check the kitchen for a bottle",
+      "expected_constraint": [
+        "K"
+      ]
+    },
+    {
+      "id": "e1_35",
+      "type": "relational",
+      "command": "find the teddy bear in the room connected to the kitchen and both bedrooms",
+      "expected_constraint": [
+        "LR"
+      ]
+    },
+    {
+      "id": "e1_36",
+      "type": "relational",
+      "command": "look in the room next to bedroom 2 for a cup",
+      "expected_constraint": [
+        "LR"
+      ]
+    },
+    {
+      "id": "e1_37",
+      "type": "explicit",
+      "command": "find the apple",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_38",
+      "type": "explicit",
+      "command": "where did I leave the sandwich",
+      "expected_constraint": null
+    },
+    {
+      "id": "e1_39",
+      "type": "explicit",
+      "command": "locate the bowl",
+      "expected_constraint": null
+    }
+  ]
+}
