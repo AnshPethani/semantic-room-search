@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!-- Copied from turtlebot3_gazebo (Jazzy, 2.3.7), models/turtlebot3_waffle/model.sdf,
-     Apache License 2.0, (c) ROBOTIS. Changes for house_sim are marked "house_sim:" (D-095). -->
+     Apache License 2.0, (c) ROBOTIS. Changes for house_sim are marked "house_sim:"
+     (D-095 contact sensor, D-097 depth camera). -->
 <sdf version="1.8">
   <model name="turtlebot3_waffle">
   <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
@@ -412,6 +413,30 @@
             <mean>0.0</mean>
             <stddev>0.007</stddev>
           </noise>
+        </camera>
+      </sensor>
+
+      <!-- house_sim: depth camera (D-097). Same link origin, horizontal FOV and 16:9 aspect as
+           the RGB camera above, at a third of its resolution: RGB pixel (u, v) corresponds to
+           depth pixel (u/3, v/3). Depth in meters (32-bit float); bridged to ROS
+           /camera/depth/image_raw and /camera/depth/camera_info. -->
+      <sensor name="depth_camera" type="depth_camera">
+        <always_on>true</always_on>
+        <update_rate>15</update_rate>
+        <topic>camera/depth/image_raw</topic>
+        <gz_frame_id>camera_rgb_frame</gz_frame_id>
+        <camera name="depth">
+          <camera_info_topic>camera/depth/camera_info</camera_info_topic>
+          <horizontal_fov>1.02974</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>360</height>
+            <format>R_FLOAT32</format>
+          </image>
+          <clip>
+            <near>0.05</near>
+            <far>10.0</far>
+          </clip>
         </camera>
       </sensor>
     </link>

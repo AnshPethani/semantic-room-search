@@ -427,6 +427,28 @@ string source                   # "yolo" or "oracle"
 - **Why:** the upstream spawn launch hard-codes the stock model and its bridge file.
 - **Alternatives:** a second bridge node only for `/bumper` next to the upstream spawn (the upstream spawn would still spawn the stock model without the sensor).
 
+### D-097 Depth camera on the robot
+- **Date:** 2026-11-15 | **Status:** Proposed (new topics for Ansh's detector)
+- **Decision:** The model copy (D-095) gets a second camera sensor, `depth_camera` (type `depth_camera`), in the same link as the RGB camera (`camera_rgb_frame`), at the link origin like the RGB sensor, with the same horizontal FOV (1.02974 rad) and the same 16:9 aspect, at 640 × 360 and 15 Hz, clip 0.05–10 m. Depth is in meters (32-bit float). ROS topics: `/camera/depth/image_raw` (`sensor_msgs/Image`, through `ros_gz_image image_bridge`) and `/camera/depth/camera_info`. RGB pixel (u, v) corresponds to depth pixel (u/3, v/3). The RGB camera and its topics are unchanged.
+- **Frame convention (for Ansh):** both images carry `frame_id` `camera_rgb_frame`, the TurtleBot3 body-style frame (x forward, y left, z up), not an optical frame (z forward). Projecting a pixel with depth into the map needs that rotation applied.
+- **Why:** proposal: the detector projects detections "to the map frame using depth and TF", and the touch step stops when "the depth reading is below 0.15 m"; the stock simulated Waffle camera is RGB only.
+- **Alternatives:** replacing the RGB camera with an `rgbd_camera` sensor (one sensor, but it renames the existing RGB topic); depth at the full 1920 × 1080 (exact pixel match, but much heavier to render under WSL).
+
+## Phase 3 (continued): approach and touch (Kristika, step 7)
+
+### D-098 Approach-and-touch logic
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** `ros/house_sim/scripts/touch_logic.py` (ROS-free). Standoff: 16 poses on a circle of radius (target footprint radius + 0.5 m) around the target, facing it, kept only if inside a room and at least 0.32 m from known walls (robot radius 0.22 + 0.1), closest to the robot first. Servo (about 20 Hz): turn in place while the bearing error is above 0.1 rad (turn rate 1.5 × error, at most 0.5 rad/s); otherwise drive at 0.4 × remaining gap, clamped to 0.03–0.08 m/s, with the same heading correction. Stop rules, in order: bumper contact with the target (success, `contact`); bumper contact with anything else (failure, `blocked:<model>`); facing the target (bearing error ≤ 15°) and the smallest depth in the target's image column band (±20 px around its bearing as seen from the camera, which sits 0.069 m ahead of and 0.047 m right of `base_link`; using the robot-center bearing instead put the band 60–140 px beside the bottle in the first run) ≤ 0.15 m (success, `depth`); facing and the pose-based gap from the body's front face (0.0685 m ahead of `base_link`) to the target footprint ≤ 0.05 m (success, `gap`).
+- **Why:** proposal Step 4 ("standoff pose 0.5 m from it", "drives forward slowly until the bumper reports contact or the depth reading is below 0.15 m"; touch success is contact or ≤ 0.15 m while facing). The camera is about 0.12 m above the floor with a 17.7° half vertical field of view, so near the end small objects (banana, book, remote, laptop, sandwich, cell phone) drop below the image and the depth stop cannot see them; the 0.01 m cell phone is also below the bumper (D-095). The pose-based gap stop covers those cases; at 0.05 m it rarely fires before contact or depth for other objects.
+- **Simplification:** the target's bearing comes from its known map position and the robot's AMCL pose, not from centering a bounding box in the image as the proposal describes; the oracle detector gives positions, not boxes. With YOLO, the bearing can come from the box instead.
+- **Alternatives:** depth stop only (misses small objects); bumper only (misses the cell phone, and contact with a static object can push the robot sideways).
+
+### D-099 Touch command for one target
+- **Date:** 2026-11-15 | **Status:** Proposed
+- **Decision:** `ros2 run house_sim touch_target.py --name <model name> [--scenario demo]` takes the target from the scenario (the same `place_objects` data as `data/objects_<scenario>.json`, D-074), drives to the standoff with Nav2 (up to 4 candidates, 300 s simulated time each), then runs the servo of D-098 for at most 60 s simulated time, publishing `TwistStamped` on `/cmd_vel` directly, reading `/bumper` and `/camera/depth/image_raw`, and the robot pose from TF (`map` → `base_link`). It prints `RESULT <name>: SUCCEEDED|FAILED (<outcome>)` with the final gap and bearing error, and exits 0 on success. It assumes AMCL is already localized and does not reset the initial pose. TF is received on a separate node with its own spin thread, and the servo loop handles all waiting messages each cycle; with TF on the navigator node the pose went stale behind the depth images and the first bottle run oscillated and timed out (2026-11-15). The servo prints its state once per simulated second. After the result, the robot backs off straight at 0.05 m/s until the gap is 0.30 m (at most 20 s simulated time; stops if the bumper touches anything else; `--no-back-off` skips it): next to a tall target the robot is inside the target's lethal costmap zone, and Nav2 could not plan the next goal from there (seen 2026-11-15: the bowl run after the bottle hung in recoveries). Later the planner calls the same logic with the target from a `Detection` message (D-005) instead of a name.
+- **Why:** user choice (2026-11-15): start with the truth data now rather than wait for Ansh's `semantic_msgs`.
+- **Alternatives:** waiting for `Detection.msg`; a plain x y argument (no link to object names).
+
 ## Phase 4: Grounding output schema and validator
 
 ### D-100 Vocabulary config and loader
@@ -534,6 +556,8 @@ string source                   # "yolo" or "oracle"
 None at the moment. Former points 1–4 were answered by D-050, D-006, D-007 and D-074.
 
 ## Decision history
+- 2026-11-15: Phase 3 step 7 (approach and touch) decisions D-098, D-099 proposed. D-097 verified in Gazebo (center depth 1.507 m against 1.51 m expected).
+- 2026-11-15: D-097 (depth camera, new topics `/camera/depth/image_raw` and `/camera/depth/camera_info`) proposed. Step 6 verified in Gazebo (bumper contacts with `obj_bottle_0` and a wall).
 - 2026-11-15: Phase 3 step 6 (contact sensor) decisions D-095, D-096 proposed. Found: the simulated Waffle camera is RGB only (no depth), although the proposal assumes RGB-D.
 - 2026-11-15: Kristika's answers to Ansh's interface questions: D-006 (planner uses `room_prior` only) and D-007 (detector computes `room_id`) agreed; D-074 (oracle truth files `data/objects_<scenario>.json`) agreed; open points 2–4 closed. D-051 to D-092 promoted to Agreed by Kristika. D-070 updated: catalog extended to the 12-class vocabulary (orange, bowl, cell phone added), so the vocabulary note in D-100 is resolved.
 - 2026-11-14: Phase 4 grounding loop, backends, cache and logging (D-104 to D-115) proposed. Prompt files and the keyword table are placeholders or drafts awaiting the user's text and review.

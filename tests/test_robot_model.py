@@ -45,12 +45,46 @@ def test_upstream_sensors_are_unchanged(model):
     sensors = {s.get("name"): s.get("type") for link in model.findall("link")
                for s in link.findall("sensor")}
     assert sensors == {"tb3_imu": "imu", "hls_lfcd_lds": "gpu_lidar", "camera": "camera",
-                       "bumper": "contact"}
+                       "bumper": "contact", "depth_camera": "depth_camera"}
+
+
+def _sensor(model, name):
+    return next(s for link in model.findall("link") for s in link.findall("sensor")
+                if s.get("name") == name)
+
+
+def _link_of(model, name):
+    return next(link.get("name") for link in model.findall("link")
+                for s in link.findall("sensor") if s.get("name") == name)
+
+
+def test_depth_camera_is_aligned_with_the_rgb_camera(model):
+    rgb, depth = _sensor(model, "camera"), _sensor(model, "depth_camera")
+    assert _link_of(model, "camera") == _link_of(model, "depth_camera")
+    assert rgb.find("pose") is None and depth.find("pose") is None  # both at the link origin
+    assert depth.find("gz_frame_id").text == rgb.find("gz_frame_id").text
+    assert float(depth.find("camera/horizontal_fov").text) == \
+        float(rgb.find("camera/horizontal_fov").text)
+    rw, rh = (int(rgb.find(f"camera/image/{k}").text) for k in ("width", "height"))
+    dw, dh = (int(depth.find(f"camera/image/{k}").text) for k in ("width", "height"))
+    assert rw * dh == rh * dw  # same aspect ratio
+    assert rw % dw == 0 and rw // dw == 3  # RGB pixel (u, v) -> depth pixel (u/3, v/3)
+
+
+def test_depth_range_covers_the_touch_stop(model):
+    clip = _sensor(model, "depth_camera").find("camera/clip")
+    assert float(clip.find("near").text) < 0.15 < float(clip.find("far").text)
+    assert _sensor(model, "depth_camera").find("topic").text == "camera/depth/image_raw"
+
+
+def test_world_launch_bridges_both_images():
+    text = WORLD_LAUNCH.read_text(encoding="utf-8")
+    assert "'/camera/image_raw', '/camera/depth/image_raw'" in text
 
 
 def test_bridge_keeps_upstream_topics_and_adds_bumper(bridge):
     topics = {e["ros_topic_name"]: e for e in bridge}
-    assert set(topics) == UPSTREAM_TOPICS | {"bumper"}
+    assert set(topics) == UPSTREAM_TOPICS | {"bumper", "camera/depth/camera_info"}
     bumper = topics["bumper"]
     assert (bumper["gz_topic_name"], bumper["ros_type_name"], bumper["gz_type_name"],
             bumper["direction"]) == ("bumper", "ros_gz_interfaces/msg/Contacts",

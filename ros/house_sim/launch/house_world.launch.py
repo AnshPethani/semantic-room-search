@@ -75,5 +75,5 @@ def generate_launch_description():
              arguments=['--ros-args', '-p',
                         f"config_file:={os.path.join(pkg, 'config', 'robot_bridge.yaml')}"]),
         Node(package='ros_gz_image', executable='image_bridge', output='screen',
-             arguments=['/camera/image_raw']),
+             arguments=['/camera/image_raw', '/camera/depth/image_raw']),  # RGB, depth (D-097)
     ])

@@ -58,6 +58,14 @@
   gz_type_name: "gz.msgs.CameraInfo"
   direction: GZ_TO_ROS
 
+# house_sim: depth camera info (D-097); the depth image itself goes through ros_gz_image
+# image_bridge in house_world.launch.py, like the RGB image.
+- ros_topic_name: "camera/depth/camera_info"
+  gz_topic_name: "camera/depth/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
 # house_sim: contact sensor on the robot body (models/turtlebot3_waffle_bumper, D-095)
 - ros_topic_name: "bumper"
   gz_topic_name: "bumper"

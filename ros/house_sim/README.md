@@ -136,7 +136,27 @@ walls) is published on ROS `/bumper` (`ros_gz_interfaces/msg/Contacts`):
 ros2 topic echo /bumper     # prints messages only while something touches the robot body
 ```
 
-## 9. Changing the house
+## 9. Depth camera
+
+Next to the RGB camera (`/camera/image_raw`, 1920 × 1080) the robot has a depth camera
+with the same view at a third of the resolution: `/camera/depth/image_raw` (640 × 360,
+meters, 32-bit float, 15 Hz) and `/camera/depth/camera_info`. RGB pixel (u, v) is depth
+pixel (u/3, v/3). Both use frame `camera_rgb_frame` (x forward, not an optical frame).
+
+## 10. Approach and touch
+
+```bash
+ros2 launch house_sim house_nav.launch.py
+ros2 launch house_sim spawn_objects.launch.py
+ros2 run house_sim touch_target.py --name obj_bottle_0
+```
+
+Nav2 drives to a pose 0.5 m in front of the target, then a slow servo turns toward it and
+drives until the bumper touches it, the depth camera reads ≤ 0.15 m where it is, or the
+estimated gap is ≤ 0.05 m (for flat objects the camera and bumper cannot see). It prints
+`RESULT <name>: SUCCEEDED|FAILED (<reason>)`.
+
+## 11. Changing the house
 
 Edit `layout/house_layout.yaml` (walls, doors, room polygons, start pose), then,
 from the **repository root** (the scene graph is written to `<repo>/data/`):
