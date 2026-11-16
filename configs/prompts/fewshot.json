@@ -1,13 +1,82 @@
 {
-  "description": "PLACEHOLDER few-shot examples. Replace with the real examples. They must not overlap the E1 test commands (D-017).",
   "examples": [
     {
-      "command": "PLACEHOLDER: search the dining area for a bowl",
+      "command": "my apple rolled away somewhere, can you track it down?",
       "response": {
-        "targets": ["bowl"],
-        "room_prior": { "D": 0.82, "K": 0.10, "LR": 0.04, "E": 0.01, "B1": 0.015, "B2": 0.015 },
-        "room_constraint": ["D"],
-        "rationale": "The command names the dining area."
+        "targets": [
+          "apple"
+        ],
+        "room_prior": {
+          "K": 0.4,
+          "D": 0.25,
+          "LR": 0.2,
+          "E": 0.05,
+          "B1": 0.05,
+          "B2": 0.05
+        },
+        "room_constraint": null,
+        "rationale": "Apples are usually kept or eaten in the kitchen or dining area, but they can end up elsewhere."
+      }
+    },
+    {
+      "command": "I'm bored",
+      "response": {
+        "targets": [
+          "book",
+          "remote",
+          "laptop",
+          "teddy bear"
+        ],
+        "room_prior": {
+          "LR": 0.35,
+          "B1": 0.2,
+          "B2": 0.2,
+          "K": 0.1,
+          "D": 0.1,
+          "E": 0.05
+        },
+        "room_constraint": null,
+        "rationale": "Boredom is vague, so several entertainment items are plausible, mostly in living and sleeping areas."
+      }
+    },
+    {
+      "command": "my bottle might be in one of the rooms you can walk to straight from bedroom 1",
+      "response": {
+        "targets": [
+          "bottle"
+        ],
+        "room_prior": {
+          "LR": 0.9,
+          "K": 0.03,
+          "D": 0.03,
+          "E": 0.02,
+          "B1": 0.01,
+          "B2": 0.01
+        },
+        "room_constraint": [
+          "LR"
+        ],
+        "rationale": "Bedroom 1 has a door only to the living room, so that is the only room that satisfies the description."
+      }
+    },
+    {
+      "command": "is there a book in the dining area?",
+      "response": {
+        "targets": [
+          "book"
+        ],
+        "room_prior": {
+          "D": 0.85,
+          "LR": 0.06,
+          "K": 0.04,
+          "E": 0.02,
+          "B1": 0.02,
+          "B2": 0.01
+        },
+        "room_constraint": [
+          "D"
+        ],
+        "rationale": "The command names the dining area, so almost all probability goes there."
       }
     }
   ]

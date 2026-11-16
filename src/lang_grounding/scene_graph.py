@@ -353,6 +353,17 @@ def render_for_prompt(graph: SceneGraph) -> str:
     return "\n".join(lines)
 
 
+def render_names_only(graph: SceneGraph) -> str:
+    """Ablation variant of the building description: room IDs and names only (D-124).
+
+    No areas, no doors or adjacency, no exterior-door note, and no definition of "next to":
+    the model gets no information about how the rooms are connected.
+    """
+    lines = [f"The building has {len(graph.rooms)} rooms:"]
+    lines.extend(f"- {room.id}: {room.name}" for room in graph.rooms)
+    return "\n".join(lines)
+
+
 # --------------------------------------------------------------------------- CLI
 
 def main(argv: list[str] | None = None) -> int:

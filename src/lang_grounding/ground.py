@@ -47,6 +47,11 @@ class GroundOutcome:
     model: the backend's model name (also for cache and fallback results).
     errors: backend errors and validation errors seen, each prefixed with its attempt number.
     no_keyword_match: fallback only; True if no keyword matched (uniform prior, all targets).
+    fallback_reason: fallback only; "backend_error" if the last thing that happened was a
+        backend error (timeout, rate limit, network, malformed response), "invalid_output" if
+        the backend answered twice but the answer was invalid both times (D-123).
+    backend_latency_s: llm only; the backend latency of the successful attempt, without the
+        failed attempt or the retry overhead (D-123).
     """
 
     command: str
@@ -57,6 +62,8 @@ class GroundOutcome:
     model: str
     errors: tuple[str, ...] = ()
     no_keyword_match: bool = False
+    fallback_reason: str | None = None
+    backend_latency_s: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,6 +74,9 @@ class GroundOutcome:
             "model": self.model,
             "errors": list(self.errors),
             "no_keyword_match": self.no_keyword_match,
+            "fallback_reason": self.fallback_reason,
+            "backend_latency_s": (
+                None if self.backend_latency_s is None else round(self.backend_latency_s, 4)),
             "result": self.result.model_dump(mode="json"),
         }
 
@@ -165,13 +175,15 @@ def ground(
             cache.put(key, result, command=command, model=backend.model)
         outcome = GroundOutcome(
             command=command, result=result, source="llm", attempts=attempts,
-            latency_s=time.perf_counter() - start, model=backend.model, errors=tuple(errors))
+            latency_s=time.perf_counter() - start, model=backend.model, errors=tuple(errors),
+            backend_latency_s=backend_latencies[-1])
     else:
         match = keyword_ground(command, graph, vocab, keyword_table, floor=floor)
         outcome = GroundOutcome(
             command=command, result=match.result, source="fallback", attempts=attempts,
             latency_s=time.perf_counter() - start, model=backend.model,
-            errors=tuple(errors), no_keyword_match=match.no_match)
+            errors=tuple(errors), no_keyword_match=match.no_match,
+            fallback_reason="backend_error" if backend_errors else "invalid_output")
 
     _log(logger, outcome, raw_responses=raw_responses, validation=validation,
          backend_errors=backend_errors, backend_latencies=backend_latencies)
@@ -202,6 +214,9 @@ def _log(
         "validation_errors": validation,
         "backend_errors": backend_errors,
         "no_keyword_match": outcome.no_keyword_match,
+        "fallback_reason": outcome.fallback_reason,
+        "backend_latency_s": (
+            None if outcome.backend_latency_s is None else round(outcome.backend_latency_s, 4)),
         "result": outcome.result.model_dump(mode="json"),
     })
 
@@ -215,6 +230,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("command", help="the command to ground, in quotes")
     parser.add_argument("--backend", choices=["gemini", "ollama", "fake"], default="fake")
     parser.add_argument("--config", help="path to a grounding.json (default: configs/)")
+    parser.add_argument(
+        "--env-file",
+        help="env file to read first (default: .env at the repository root; a relative path "
+             "is relative to the repository root; variables already set win)")
     parser.add_argument("--graph", help="scene graph JSON (default: from the config)")
     parser.add_argument("--vocabulary", help="vocabulary JSON (default: from the config)")
     parser.add_argument("--no-cache", action="store_true", help="do not read or write the cache")
@@ -223,7 +242,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _setup(args: argparse.Namespace) -> dict[str, Any]:
-    config: GroundingConfig = load_config(args.config)
+    # load_config reads the env file first, before anything else is set up (D-120)
+    config: GroundingConfig = load_config(args.config, env_file=args.env_file)
     return {
         "config": config,
         "graph": load_scene_graph(args.graph or config.resolve(config.paths.scene_graph)),
