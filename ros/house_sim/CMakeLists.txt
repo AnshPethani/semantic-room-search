@@ -9,7 +9,7 @@ install(DIRECTORY launch worlds maps layout models config objects
 # room_goals, generate_house), so they are installed together.
 install(PROGRAMS scripts/generate_house.py scripts/room_goals.py scripts/room_tour.py
   scripts/house_objects.py scripts/viewpoints.py scripts/clutter.py
-  scripts/touch_logic.py scripts/touch_target.py
+  scripts/touch_logic.py scripts/touch_target.py scripts/touch_check.py scripts/touch_all.py
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

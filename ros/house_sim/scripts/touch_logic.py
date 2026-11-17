@@ -52,6 +52,11 @@ class ServoParams:
                                  # true gap is slightly larger than the depth when not square-on
     gap_stop: float = 0.05       # m, gap from the tracked estimate (target out of view)
     band_px: int = 60            # half width of the image search band around the target
+    acquire_band_px: int = 320   # until the target is first seen, search the whole width
+                                 # (640 px): AMCL put the cup ~0.25 m to the side (~23 deg)
+    acquire_max_jump: float = 0.40  # m, accepted distance of the first sighting from the
+                                    # AMCL-based estimate
+    unseen_stop_gap: float = 0.30   # m; never seen by here -> stop, FAILED ("unseen")
     stride_px: int = 4           # pixel step of the search (rows and columns)
     floor_margin: float = 0.03   # m; a pixel this much closer than the floor is an object
     hidden_margin: float = 0.02  # m; ignore sightings closer than the near-side-hidden depth
@@ -147,16 +152,18 @@ def column_of(bearing, width, hfov=CAMERA_HFOV):
     return int(round(width / 2 - focal_px(width, hfov) * math.tan(b)))
 
 
-def nearest_object(depth_at, width, height, u_center, params=None):
+def nearest_object(depth_at, width, height, u_center, params=None, band_px=None):
     """Closest non-floor pixel in a column band around u_center, or None.
 
     depth_at(u, v) returns the depth in meters (inf or nan for no return). A pixel counts as
-    an object if it is clearly closer than the floor would be in its row.
+    an object if it is clearly closer than the floor would be in its row. band_px defaults to
+    params.band_px.
     """
     params = params or DEFAULT_PARAMS
+    band = params.band_px if band_px is None else band_px
     best = None
-    u0 = max(0, u_center - params.band_px)
-    u1 = min(width, u_center + params.band_px + 1)
+    u0 = max(0, u_center - band)
+    u1 = min(width, u_center + band + 1)
     for u in range(u0, u1, params.stride_px):
         for v in range(0, height, params.stride_px):
             d = depth_at(u, v)
@@ -198,34 +205,44 @@ def observed_target(pose, hit, width, radius, hfov=CAMERA_HFOV):
     return to_world(pose, CAMERA_OFFSET[0] + xc, CAMERA_OFFSET[1] + yc)
 
 
-def update_target(estimate, observation, params=None):
-    """Blend a sighting into the estimate if it is plausibly the same object.
-    Returns (new estimate, accepted)."""
+def update_target(estimate, observation, params=None, max_jump=None, blend=None):
+    """Blend a sighting into the estimate if it is plausibly the same object (within max_jump,
+    default params.max_jump; weight blend, default params.blend). Returns (estimate, accepted)."""
     params = params or DEFAULT_PARAMS
-    if observation is None or math.dist(estimate, observation) > params.max_jump:
+    limit = params.max_jump if max_jump is None else max_jump
+    if observation is None or math.dist(estimate, observation) > limit:
         return estimate, False
-    b = params.blend
+    b = params.blend if blend is None else blend
     x = (1 - b) * estimate[0] + b * observation[0]
     y = (1 - b) * estimate[1] + b * observation[1]
     return (x, y), True
 
 
-def track(pose, estimate, radius, near_height, depth_at, width, height, params=None):
+def track(pose, estimate, radius, near_height, depth_at, width, height, params=None,
+          acquired=True):
     """One tracking step: look for the target near its expected column and update the estimate.
 
     near_height: height of the target's point nearest to the camera (near_side_height).
     A hit closer than the depth at which that point leaves the image is the far part of a
-    low object, not its near side, and is ignored. Returns (estimate, accepted depth or None).
+    low object, not its near side, and is ignored. Until the target has been seen once
+    (acquired=False) the search band and the accepted jump are wider, because the starting
+    estimate carries the full AMCL error. Returns (estimate, accepted depth or None).
     """
     params = params or DEFAULT_PARAMS
     if depth_at is None:
         return estimate, None
     u = column_of(camera_bearing(pose, estimate), width)
-    hit = nearest_object(depth_at, width, height, u, params)
+    band = params.band_px if acquired else params.acquire_band_px
+    jump = params.max_jump if acquired else params.acquire_max_jump
+    hit = nearest_object(depth_at, width, height, u, params, band_px=band)
     hidden = near_side_hidden_below(near_height, width, height)
     if hit is None or (hidden > 0 and hit.depth < hidden + params.hidden_margin):
         return estimate, None
-    new, ok = update_target(estimate, observed_target(pose, hit, width, radius), params)
+    # The first sighting replaces the AMCL-based estimate outright (it is far more accurate);
+    # later sightings are blended to smooth depth noise. Half-blending the first one left the
+    # estimate 0.1 m off, outside the narrow band, and the cup was lost again (test, 2026-11-16).
+    new, ok = update_target(estimate, observed_target(pose, hit, width, radius), params,
+                            max_jump=jump, blend=None if acquired else 1.0)
     return (new, hit.depth) if ok else (estimate, None)
 
 
@@ -271,12 +288,14 @@ def back_off_step(pose, target, radius, target_name, contacts, params=None):
     return ServoStep(-params.back_v, 0.0, False, "")
 
 
-def servo_step(pose, target, radius, target_name, contacts, depth, params=None):
+def servo_step(pose, target, radius, target_name, contacts, depth, params=None, seen=True):
     """One control step of the final approach.
 
     pose and target in the same frame (odom during the approach); target is the tracked
     estimate. contacts: Gazebo model names touching the robot body (from /bumper).
     depth: the target's depth from this cycle's accepted sighting, or None.
+    seen: whether the camera has confirmed the target at least once. If not by the time the
+    estimated gap is unseen_stop_gap, the estimate is only AMCL's guess: stop, "unseen".
     """
     params = params or DEFAULT_PARAMS
     if target_name in contacts:
@@ -287,6 +306,8 @@ def servo_step(pose, target, radius, target_name, contacts, depth, params=None):
 
     e = bearing_error(pose, target)
     g = gap(pose, target, radius)
+    if not seen and g <= params.unseen_stop_gap:
+        return ServoStep(0.0, 0.0, True, "unseen")
     facing = abs(e) <= params.facing_tol
     if facing and depth is not None and depth <= params.depth_stop:
         return ServoStep(0.0, 0.0, True, "depth")

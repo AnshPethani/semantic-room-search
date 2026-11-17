@@ -20,6 +20,7 @@ later it can come from a Detection message instead. Exit code 0 on success.
 import argparse
 import math
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -35,6 +36,7 @@ from rclpy.time import Time
 from ros_gz_interfaces.msg import Contacts
 from sensor_msgs.msg import Image
 from tf2_ros import Buffer, TransformListener
+from touch_check import parse_gz_pose, touch_ok, true_touch
 from touch_logic import (
     ServoParams,
     back_off_step,
@@ -110,6 +112,8 @@ def main():
     ap.add_argument("--touch-timeout", type=float, default=60.0, help="s (sim) for the servo")
     ap.add_argument("--no-back-off", action="store_true",
                     help="stay at the target after the touch (Nav2 cannot plan from there)")
+    ap.add_argument("--truth", action="store_true",
+                    help="after the touch, check it against Gazebo's true robot pose (D-094)")
     args, _ = ap.parse_known_args()
 
     share = get_package_share_directory("house_sim")
@@ -195,12 +199,14 @@ def main():
             img = sensors.depth
             h, w = img.shape
             est, depth = track(pose, est, radius, near_h,
-                               lambda u, v, img=img: float(img[v, u]), w, h, params)
+                               lambda u, v, img=img: float(img[v, u]), w, h, params,
+                               acquired=sightings > 0)
             sightings += depth is not None
             if depth is not None:
                 last_depth = depth
         contacts = sensors.current_contacts()
-        step = servo_step(pose, est, radius, args.name, contacts, depth, params)
+        step = servo_step(pose, est, radius, args.name, contacts, depth, params,
+                          seen=sightings > 0)
         send(step.v, step.w)
         now = nav.get_clock().now()
         if last_report is None or now - last_report >= Duration(seconds=1.0):
@@ -225,6 +231,23 @@ def main():
           f"front-to-target gap {gap(pose, est, radius):.3f} m, bearing error "
           f"{math.degrees(bearing_error(pose, est)):.1f} deg; depth sightings {sightings}, "
           f"estimate moved {shift:.3f} m from the AMCL-based start", flush=True)
+
+    if args.truth:  # before the back-off, while the robot is still at the target
+        try:
+            out = subprocess.run(["gz", "model", "-m", ROBOT_MODEL, "-p"], capture_output=True,
+                                 text=True, timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            out = ""
+            print(f"    truth check: gz failed ({exc})", flush=True)
+        true_pose = parse_gz_pose(out)
+        if true_pose is None:
+            print(f"TRUTH {args.name}: no Gazebo pose", flush=True)
+        else:
+            tgap, tbear = true_touch(true_pose, txy, catalog["classes"][target["label"]],
+                                     target["yaw"])
+            print(f"TRUTH {args.name}: gap {tgap:.3f} m, bearing {math.degrees(tbear):.1f} deg, "
+                  f"{'PASS' if touch_ok(tgap, tbear) else 'FAIL'} (Gazebo pose "
+                  f"{true_pose[0]:.3f} {true_pose[1]:.3f} {true_pose[2]:.3f})", flush=True)
 
     # 3. Back off, so the robot is out of the target's lethal costmap zone for the next goal.
     if not args.no_back_off and gap(pose, est, radius) < params.back_off_gap:

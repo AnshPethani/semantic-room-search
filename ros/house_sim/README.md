@@ -157,7 +157,21 @@ ignored), and a slow servo drives until the bumper touches the target, its depth
 or the tracked gap is ≤ 0.05 m (for small objects that drop out of view up close). It prints
 `RESULT <name>: SUCCEEDED|FAILED (<reason>)` and then backs off to a 0.30 m gap.
 
-## 11. Changing the house
+## 11. One-command trial and touch acceptance
+
+```bash
+ros2 launch house_sim trial.launch.py clutter_count:=5 clutter_seed:=2   # world + Nav2 + demo
+                                                                          # targets + clutter
+ros2 run house_sim touch_all.py              # touch every demo object, checked with Gazebo
+ros2 run house_sim touch_target.py --name obj_cup_0 --truth              # one object
+```
+
+`trial.launch.py` always builds the same world for the same scenario and seed (objects and
+clutter spawn `spawn_delay` = 20 s after start). `--truth` measures the real gap from the
+robot's front to the object's footprint using Gazebo's robot pose; PASS = at most 0.15 m
+while facing it. `touch_all.py` prints a summary table at the end.
+
+## 12. Changing the house
 
 Edit `layout/house_layout.yaml` (walls, doors, room polygons, start pose), then,
 from the **repository root** (the scene graph is written to `<repo>/data/`):

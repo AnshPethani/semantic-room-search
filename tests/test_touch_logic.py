@@ -262,6 +262,50 @@ def test_simulated_approach_without_camera(layout, targets, heading_offset):
         assert abs(tl.bearing_error(pose, txy)) <= P.facing_tol, o["name"]
 
 
+def _approach(true_target, est, radius, height, name="t"):
+    """Robot at the standoff in front of the estimate, facing it (as Nav2 leaves it, since the
+    standoff is computed from AMCL), then tracking with the rendered camera."""
+    dt = 0.05
+    pose = (est[0] - (radius + tl.STANDOFF), est[1], 0.0)
+    sightings = 0
+    for _ in range(int(60 / dt)):
+        est, depth = tl.track(pose, est, radius, height,
+                              _render(pose, true_target, radius, height), W, H,
+                              acquired=sightings > 0)
+        sightings += depth is not None
+        s = tl.servo_step(pose, est, radius, name, set(), depth, seen=sightings > 0)
+        if s.done:
+            break
+        pose = _drive(pose, s, dt)
+    return s, pose, sightings
+
+
+def test_wide_first_search_finds_a_target_far_to_the_side():
+    # The cup run in Gazebo: AMCL put the cup ~0.2 m to the side, outside the normal band, and
+    # the robot drove on AMCL alone (0 sightings) and stopped beside the cup.
+    r, h = 0.045, 0.10
+    true_target = (2.0, 1.0)
+    s, pose, sightings = _approach(true_target, (2.0, 1.2), r, h, "cup")
+    # The 0.10 m cup stays in view until ~0.07 m, so the depth stop (0.14 m) comes first.
+    assert s.done and s.outcome in ("depth", "gap") and sightings > 5
+    assert 0.0 <= tl.gap(pose, true_target, r) <= 0.15
+    assert abs(tl.bearing_error(pose, true_target)) <= P.facing_tol
+
+
+def test_never_seen_target_is_a_failure_not_a_success():
+    # Estimate 0.7 m to the side of the real cup: it never shows up where expected.
+    s, pose, sightings = _approach((2.0, 0.3), (2.0, 1.0), 0.045, 0.10, "cup")
+    assert sightings == 0
+    assert s.done and s.outcome == "unseen"
+    assert tl.gap(pose, (2.0, 1.0), 0.045) == pytest.approx(P.unseen_stop_gap, abs=0.01)
+
+
+def test_unseen_stop_rule():
+    near = (0.0, 0.0, 0.0), (P.unseen_stop_gap - 0.01 + tl.BODY_FRONT + 0.05, 0.0)
+    assert tl.servo_step(*near, 0.05, "t", set(), None, seen=False).outcome == "unseen"
+    assert not tl.servo_step(*near, 0.05, "t", set(), None, seen=True).done
+
+
 @pytest.mark.parametrize("name,radius,height,outcome,max_gap", [
     ("bottle", 0.035, 0.25, "depth", 0.15),           # tall: seen all the way; proposal 0.15
     ("banana", 0.092, 0.04, "gap", P.gap_stop + 0.02),  # low: drops out of view up close
@@ -276,9 +320,10 @@ def test_simulated_approach_corrects_an_amcl_error(name, radius, height, outcome
     sightings = 0
     for _ in range(int(60 / dt)):
         est, depth = tl.track(pose, est, radius, height,
-                              _render(pose, true_target, radius, height), W, H)
+                              _render(pose, true_target, radius, height), W, H,
+                              acquired=sightings > 0)
         sightings += depth is not None
-        s = tl.servo_step(pose, est, radius, name, set(), depth)
+        s = tl.servo_step(pose, est, radius, name, set(), depth, seen=sightings > 0)
         if s.done:
             break
         pose = _drive(pose, s, dt)
