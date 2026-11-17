@@ -7,9 +7,12 @@ Needs house_nav.launch.py running (AMCL localized) and the scenario's objects sp
 
 1. Nav2 drives to a standoff pose 0.5 m in front of the target, facing it (closest free
    candidate first; up to --tries candidates).
-2. A slow servo turns toward the target and drives forward until the bumper reports contact
-   with it, the depth camera reads <= 0.15 m where the target is, or the pose-based gap
-   estimate is <= 0.05 m. Contact with anything else stops it as a failure.
+2. The final approach runs on wheel odometry (odom frame). The target estimate starts from its
+   known position and is corrected by the depth camera whenever the target is in view (floor
+   pixels ignored). A slow servo turns toward the estimate and drives until the bumper reports
+   contact with the target, its depth is <= 0.15 m, or the estimated gap is <= 0.05 m (for
+   objects too low for the camera at close range). Contact with anything else is a failure.
+3. The robot backs off to a 0.30 m gap, so Nav2 can plan the next goal.
 
 The target position comes from the scenario (same data as data/objects_<scenario>.json);
 later it can come from a Detection message instead. Exit code 0 on success.
@@ -36,11 +39,12 @@ from touch_logic import (
     ServoParams,
     back_off_step,
     bearing_error,
-    camera_bearing,
-    depth_columns,
     gap,
+    near_side_height,
     servo_step,
     standoff_candidates,
+    track,
+    transfer,
 )
 
 ROBOT_MODEL = "waffle"       # Gazebo model name of the robot (house_world.launch.py)
@@ -62,7 +66,7 @@ class Sensors:
     def __init__(self, node):
         self.node = node
         self.contacts, self.contact_time = set(), None
-        self.depth = None
+        self.depth, self.depth_seq = None, 0
         node.create_subscription(Contacts, "/bumper", self._on_contacts, 10)
         node.create_subscription(Image, "/camera/depth/image_raw", self._on_depth, 1)
 
@@ -77,7 +81,10 @@ class Sensors:
             self.contacts, self.contact_time = models, self.node.get_clock().now()
 
     def _on_depth(self, msg):
-        self.depth = msg
+        if msg.encoding == "32FC1":
+            self.depth = np.frombuffer(bytes(msg.data), dtype=np.float32).reshape(
+                msg.height, msg.width)
+            self.depth_seq += 1
 
     def current_contacts(self):
         if self.contact_time is None:
@@ -85,19 +92,10 @@ class Sensors:
         age = (self.node.get_clock().now() - self.contact_time).nanoseconds * 1e-9
         return self.contacts if age <= CONTACT_HOLD else set()
 
-    def depth_min(self, cam_bearing, params):
-        m = self.depth
-        if m is None or m.encoding != "32FC1":
-            return None
-        d = np.frombuffer(bytes(m.data), dtype=np.float32).reshape(m.height, m.width)
-        u0, u1 = depth_columns(m.width, cam_bearing, params)
-        band = d[:, u0:u1]
-        band = band[np.isfinite(band) & (band > 0)]
-        return float(band.min()) if band.size else None
 
-
-def robot_pose(tf_buffer):
-    t = tf_buffer.lookup_transform("map", "base_link", Time())
+def lookup_pose(tf_buffer, frame):
+    """(x, y, yaw) of base_link in `frame` (map: AMCL; odom: wheel odometry)."""
+    t = tf_buffer.lookup_transform(frame, "base_link", Time())
     q = t.transform.rotation
     yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
     return (t.transform.translation.x, t.transform.translation.y, yaw)
@@ -127,6 +125,7 @@ def main():
               f"{', '.join(o['name'] for o in objects)}", file=sys.stderr)
         return 1
     txy, radius = (target["x"], target["y"]), target["radius"]
+    near_h = near_side_height(catalog["classes"][target["label"]])
 
     rclpy.init()
     nav = BasicNavigator()
@@ -142,15 +141,28 @@ def main():
     cmd = nav.create_publisher(TwistStamped, "/cmd_vel", 10)
     params = ServoParams()
 
-    # AMCL is already localized (initial pose from the layout, D-062, then tracking). Waiting on
-    # map_server instead of amcl skips BasicNavigator's initial-pose step, which would publish
-    # a zero pose.
-    nav.waitUntilNav2Active(localizer="map_server")
-    while not tf_buffer.can_transform("map", "base_link", Time()):
-        rclpy.spin_once(nav, timeout_sec=0.1)  # TF fills in on its own thread
-    start = robot_pose(tf_buffer)
+    def send(v, w):
+        msg = TwistStamped()
+        msg.header.stamp = nav.get_clock().now().to_msg()
+        msg.header.frame_id = "base_link"
+        msg.twist.linear.x, msg.twist.angular.z = v, w
+        cmd.publish(msg)
 
-    # 1. Standoff with Nav2.
+    def spin_all():
+        rclpy.spin_once(nav, timeout_sec=0.05)
+        for _ in range(20):  # handle everything that is waiting (bumper, depth), not just one
+            rclpy.spin_once(nav, timeout_sec=0.0)
+
+    # No waitUntilNav2Active(): it asks lifecycle nodes for their state with no timeout, and
+    # under WSL a lost service reply hung the run forever (2026-11-16). goToPose() already
+    # waits for the NavigateToPose action server, which exists only once Nav2 is up. AMCL is
+    # already localized (initial pose from the layout, D-062), so no initial pose is sent.
+    while not (tf_buffer.can_transform("map", "base_link", Time())
+               and tf_buffer.can_transform("odom", "base_link", Time())):
+        rclpy.spin_once(nav, timeout_sec=0.1)  # TF fills in on its own thread
+    start = lookup_pose(tf_buffer, "map")
+
+    # 1. Standoff with Nav2 (map frame).
     reached = None
     for x, y, yaw in standoff_candidates(layout, txy, radius, start[:2])[:args.tries]:
         print(f"--> standoff ({x:.2f}, {y:.2f}) facing {args.name}", flush=True)
@@ -168,33 +180,36 @@ def main():
         print(f"RESULT {args.name}: FAILED (no standoff reached)")
         return 1
 
-    def send(v, w):
-        msg = TwistStamped()
-        msg.header.stamp = nav.get_clock().now().to_msg()
-        msg.header.frame_id = "base_link"
-        msg.twist.linear.x, msg.twist.angular.z = v, w
-        cmd.publish(msg)
-
-    # 2. Servo until contact, depth or gap stop.
-    t0 = nav.get_clock().now()
-    last_report = None
-    step, outcome = None, "timeout"
+    # 2. Final approach in the odom frame: move the target estimate from map to odom once
+    #    (through the robot's AMCL and odometry poses at this instant), then track it.
+    map_pose, odom_pose = lookup_pose(tf_buffer, "map"), lookup_pose(tf_buffer, "odom")
+    est = transfer(txy, map_pose, odom_pose)
+    t0, last_report, last_seq = nav.get_clock().now(), None, -1
+    step, outcome, sightings, last_depth = None, "timeout", 0, None
     while nav.get_clock().now() - t0 < Duration(seconds=args.touch_timeout):
-        rclpy.spin_once(nav, timeout_sec=0.05)
-        for _ in range(20):  # handle everything that is waiting (bumper, depth), not just one
-            rclpy.spin_once(nav, timeout_sec=0.0)
-        pose = robot_pose(tf_buffer)
+        spin_all()
+        pose = lookup_pose(tf_buffer, "odom")
+        depth = None
+        if sensors.depth is not None and sensors.depth_seq != last_seq:
+            last_seq = sensors.depth_seq
+            img = sensors.depth
+            h, w = img.shape
+            est, depth = track(pose, est, radius, near_h,
+                               lambda u, v, img=img: float(img[v, u]), w, h, params)
+            sightings += depth is not None
+            if depth is not None:
+                last_depth = depth
         contacts = sensors.current_contacts()
-        depth = sensors.depth_min(camera_bearing(pose, txy), params)  # camera is off-center
-        step = servo_step(pose, txy, radius, args.name, contacts, depth, params)
+        step = servo_step(pose, est, radius, args.name, contacts, depth, params)
         send(step.v, step.w)
         now = nav.get_clock().now()
         if last_report is None or now - last_report >= Duration(seconds=1.0):
             last_report = now
-            print(f"    gap {gap(pose, txy, radius):.3f} m, bearing "
-                  f"{math.degrees(bearing_error(pose, txy)):6.1f} deg, v {step.v:.2f}, "
-                  f"w {step.w:+.2f}, depth {'-' if depth is None else f'{depth:.2f}'}, "
-                  f"contacts {sorted(contacts) or '-'}", flush=True)
+            print(f"    gap {gap(pose, est, radius):.3f} m, bearing "
+                  f"{math.degrees(bearing_error(pose, est)):6.1f} deg, v {step.v:.2f}, "
+                  f"w {step.w:+.2f}, last depth "
+                  f"{'-' if last_depth is None else f'{last_depth:.2f}'}, "
+                  f"sightings {sightings}, contacts {sorted(contacts) or '-'}", flush=True)
         if step.done:
             outcome = step.outcome
             break
@@ -203,21 +218,21 @@ def main():
         send(0.0, 0.0)
         rclpy.spin_once(nav, timeout_sec=0.05)
 
-    pose = robot_pose(tf_buffer)
+    pose = lookup_pose(tf_buffer, "odom")
+    shift = math.dist(est, transfer(txy, map_pose, odom_pose))
     ok = outcome in ("contact", "depth", "gap")
     print(f"RESULT {args.name}: {'SUCCEEDED' if ok else 'FAILED'} ({outcome}); "
-          f"front-to-target gap {gap(pose, txy, radius):.3f} m (from AMCL), "
-          f"bearing error {math.degrees(bearing_error(pose, txy)):.1f} deg", flush=True)
+          f"front-to-target gap {gap(pose, est, radius):.3f} m, bearing error "
+          f"{math.degrees(bearing_error(pose, est)):.1f} deg; depth sightings {sightings}, "
+          f"estimate moved {shift:.3f} m from the AMCL-based start", flush=True)
 
     # 3. Back off, so the robot is out of the target's lethal costmap zone for the next goal.
-    if not args.no_back_off and gap(pose, txy, radius) < params.back_off_gap:
+    if not args.no_back_off and gap(pose, est, radius) < params.back_off_gap:
         t0, back = nav.get_clock().now(), "timeout"
         while nav.get_clock().now() - t0 < Duration(seconds=20.0):
-            rclpy.spin_once(nav, timeout_sec=0.05)
-            for _ in range(20):
-                rclpy.spin_once(nav, timeout_sec=0.0)
-            pose = robot_pose(tf_buffer)
-            step = back_off_step(pose, txy, radius, args.name, sensors.current_contacts(),
+            spin_all()
+            pose = lookup_pose(tf_buffer, "odom")
+            step = back_off_step(pose, est, radius, args.name, sensors.current_contacts(),
                                  params)
             send(step.v, step.w)
             if step.done:
@@ -226,14 +241,16 @@ def main():
         for _ in range(5):
             send(0.0, 0.0)
             rclpy.spin_once(nav, timeout_sec=0.05)
-        print(f"    backed off: {back}, gap {gap(robot_pose(tf_buffer), txy, radius):.3f} m",
-              flush=True)
+        print(f"    backed off: {back}, gap "
+              f"{gap(lookup_pose(tf_buffer, 'odom'), est, radius):.3f} m", flush=True)
+
     # Stop the TF thread before shutdown; otherwise TransformListener.__del__ runs after
     # rclpy.shutdown() and prints a harmless but noisy InvalidHandle traceback.
+    # (Shutting down twice is harmless, and joining a finished thread returns at once, so the
+    # listener's own __del__ can repeat both later.)
     try:
         tf_listener.executor.shutdown()
         tf_listener.dedicated_listener_thread.join()
-        tf_listener.dedicated_listener_thread = None
     except AttributeError:
         pass
     nav.destroy_node()

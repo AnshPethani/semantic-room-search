@@ -151,10 +151,11 @@ ros2 launch house_sim spawn_objects.launch.py
 ros2 run house_sim touch_target.py --name obj_bottle_0
 ```
 
-Nav2 drives to a pose 0.5 m in front of the target, then a slow servo turns toward it and
-drives until the bumper touches it, the depth camera reads ≤ 0.15 m where it is, or the
-estimated gap is ≤ 0.05 m (for flat objects the camera and bumper cannot see). It prints
-`RESULT <name>: SUCCEEDED|FAILED (<reason>)`.
+Nav2 drives to a pose 0.5 m in front of the target. The final approach then runs on wheel
+odometry: the target's position is tracked and corrected with the depth camera (floor pixels
+ignored), and a slow servo drives until the bumper touches the target, its depth is ≤ 0.14 m,
+or the tracked gap is ≤ 0.05 m (for small objects that drop out of view up close). It prints
+`RESULT <name>: SUCCEEDED|FAILED (<reason>)` and then backs off to a 0.30 m gap.
 
 ## 11. Changing the house
 
