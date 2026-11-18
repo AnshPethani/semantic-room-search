@@ -54,6 +54,12 @@ Entry format: ID, date, status, decision, why, alternatives considered.
 
 ## Grounding node design
 
+### D-008 Planner behavior on grounding failure and fallback
+- **Date:** 2026-11-17 | **Status:** Agreed (asked by Ansh in D-128/D-130, decided by Kristika)
+- **Decision:** When `/ground_command` returns `success: false` (no prior), the room-order planner uses a uniform prior over all rooms, so the cost term alone orders the rooms; every room is still searched, the trial continues, and the failure is logged with the trial. When it returns `success: true` with `source: fallback`, the planner uses that keyword-table prior exactly like an LLM prior. The planner records `source` (`llm`, `cache`, `fallback`, or none for a failure) with every trial, so E2/E3 results can be split by it.
+- **Why:** the search stays complete (proposal: zero-probability rooms are still visited); the fallback prior is validated and exists for this case (D-014); recording the source keeps LLM and fallback trials distinguishable.
+- **Alternatives:** the fixed-sweep baseline order for a failed call (mixes a baseline into the method's results); aborting the trial (a grounding outage would count as a search failure); treating a fallback prior as no prior (throws away a usable prior).
+
 ### D-010 Library plus thin ROS wrapper
 - **Date:** 2026-11-12 | **Status:** Agreed
 - **Decision:** Grounding logic is a plain Python module with no ROS dependency. A small ROS 2 node wraps it as a service.
@@ -651,7 +657,7 @@ string source                   # "yolo" or "oracle"
 ## Phase 5: ROS 2 interfaces and the grounding service
 
 ### D-128 Package `semantic_msgs` and the `source` field
-- **Date:** 2026-11-17 | **Status:** Proposed (the `source` field awaits Kristika's confirmation; the rest implements the Agreed D-003 to D-005)
+- **Date:** 2026-11-17 | **Status:** Agreed (`source` field confirmed by Kristika on 2026-11-17; the rest implements the Agreed D-003 to D-005)
 - **Decision:** `ros/semantic_msgs` (ament_cmake, interfaces only, dependencies `std_msgs` and `geometry_msgs`) defines `msg/RoomProb.msg` (`room_id`, `prob`), `msg/Detection.msg` (`header` with frame `map`, `label`, `confidence`, `position`, `room_id`, `source` of `yolo` or `oracle`) and `srv/GroundCommand.srv` with the fields of "Interface specs" plus one new response field, `string source`, with values `llm`, `cache` or `fallback`. `cache_hit` stays (it equals `source == "cache"`). No other field changed.
 - **Why:** the planner and the evaluation can then tell a keyword-fallback answer from an LLM answer, which the proposal's recovery rules and E2/E3 reporting need; `cache_hit` alone cannot say that.
 - **Alternatives:** not exposing the source (a fallback prior would look like an LLM prior); replacing `cache_hit` by `source` (would change an Agreed interface for no gain).
@@ -683,13 +689,11 @@ string source                   # "yolo" or "oracle"
 - **Alternatives:** `pip install -e .` in the pixi environment (fails if its Python is older than 3.12); copying the library into the ROS package (two copies to keep in sync).
 
 ## Open points to confirm with Kristika
-1. The new `source` field of `GroundCommand.srv` (D-128).
-2. How her planner handles `success: false` and `source: fallback` answers (D-130).
-3. How `semantic_msgs` and `lang_grounding_ros` are built in her workspace (the `colcon build --base-paths ros` command in docs/ROS.md is an assumption).
-
-Former points 1–4 were answered by D-050, D-006, D-007 and D-074.
+None at the moment. Former points 1–4 were answered by D-050, D-006, D-007 and D-074; former Phase 5 points 1–3 by D-128 (`source` field agreed), D-008 (planner behavior) and the 2026-11-17 build check in Kristika's setup (see the decision history).
 
 ## Decision history
+- 2026-11-17: Phase 5 build verified in Kristika's setup (ROS 2 Jazzy from apt, Ubuntu 24.04 in WSL, system Python 3.12; workspace `~/ros2_ws` outside the repository): `colcon build --symlink-install --base-paths /mnt/c/Users/krist/semantic-room-search/ros` builds `semantic_msgs`, `lang_grounding_ros` and `house_sim`; `ros2 interface show` lists the `source` field; the launch file finds the repository through the symlink and sets `PYTHONPATH`; after `pip install --user --break-system-packages "pydantic>=2"` (Ubuntu's own python3-pydantic is 1.x) the node starts with `backend:=fake` and `ros2 service call /ground_command` returns `success=True`, target `banana`, six room probabilities, `source` `llm` then `cache`. Open point 3 closed. Not yet checked: the Gemini and Ollama backends through the node.
+- 2026-11-17: Kristika confirmed the `source` field (D-128 set to Agreed) and decided the planner behavior for `success: false` and `source: fallback` (D-008, Agreed). Open point 3 (build in her WSL/apt setup) stays open until the smoke test there.
 - 2026-11-17: Phase 5 (ROS 2 interfaces and the `/ground_command` node): D-128 to D-132 proposed, written without building or running anything. New `source` field of `GroundCommand.srv` awaits Kristika.
 - 2026-11-16: Touch acceptance run (D-094) on the demo scenario: 11/12 passed against Gazebo truth (true gaps 0.046–0.048 m on the gap stop, 0.135–0.136 m on the depth stop, cell phone 0.000 m). The cup failed with 0 sightings and a false `gap` success; D-098 amended: whole-width first search and an `unseen` failure.
 - 2026-11-16: Step 7 verified in Gazebo (bottle true gap 0.136 m on the depth stop, banana ~0.047 m on the gap stop). Phase 3 step 8: D-093 (one-command trial launch) and D-094 (touch acceptance against Gazebo ground truth) proposed.
