@@ -1,0 +1,79 @@
+id,type,method,source,attempts,top1,top2,constraint_ok,latency_s,ranked_rooms,targets,rationale,fallback_reason,passes
+e1_01,explicit,gemini_full,llm,1,1.0000,1.0000,1,1.2181,K LR D B2 E B1,banana,Bananas are food items and are most commonly found in the kitchen.,,1
+e1_02,explicit,gemini_full,llm,1,1.0000,1.0000,1,0.7615,LR B2 B1 E K D,remote,Remotes are most commonly found in the living room and bedrooms.,,1
+e1_03,explicit,gemini_full,llm,1,1.0000,1.0000,1,1.0635,LR B1 B2 K E D,laptop,Laptops are typically used and kept in living spaces and bedrooms.,,1
+e1_04,explicit,gemini_full,llm,1,1.0000,1.0000,1,0.9844,K LR D E B1 B2,cup,"Cups are most commonly found in the kitchen or dining area, but can occasionally be in the living room or bedrooms.",,1
+e1_05,explicit,gemini_full,llm,1,0.0000,1.0000,1,0.9900,LR B1 B2 D K E,teddy bear,Teddy bears are toys typically found in bedrooms or the living room.,,1
+e1_06,explicit,gemini_full,llm,1,1.0000,1.0000,1,1.0568,LR B1 B2 E K D,book,Books are typically found in living areas and bedrooms.,,1
+e1_07,explicit,gemini_full,llm,1,1.0000,1.0000,1,0.8886,K LR D B1 B2 E,bottle,"Bottles are most commonly found in the kitchen and living room, but can be anywhere.",,1
+e1_08,explicit,gemini_full,llm,1,1.0000,1.0000,1,1.3351,LR K B1 B2 E D,cell phone,Cell phones are commonly kept in living and sleeping areas or the kitchen.,,1
+e1_09,explicit,gemini_full,llm,1,1.0000,1.0000,1,0.8479,K LR D E B2 B1,orange,Oranges are usually kept in the kitchen or dining area.,,1
+e1_10,category,gemini_full,llm,1,1.0000,1.0000,1,1.0801,K LR D E B1 B2,banana; apple; orange; sandwich,"Food items are typically stored and prepared in the kitchen or dining area, with occasional presence in the living room.",,1
+e1_11,category,gemini_full,llm,1,1.0000,1.0000,1,0.9352,K LR D E B1 B2,banana; apple; orange,"Fruit is typically stored or eaten in the kitchen, living room, or dining area.",,1
+e1_12,category,gemini_full,llm,1,1.0000,1.0000,1,0.9691,K LR D E B2 B1,cup; bottle,"Drinking vessels are primarily found in the kitchen and dining area, but can be carried to other rooms.",,1
+e1_13,category,gemini_full,llm,1,1.0000,1.0000,1,0.9046,LR B1 B2 E K D,laptop; cell phone; remote,"Electronics such as laptops, cell phones, and remotes are commonly found in the living room and bedrooms.",,1
+e1_14,category,gemini_full,llm,1,1.0000,1.0000,1,1.3346,LR B1 B2 E K D,teddy bear,Toys like a teddy bear are typically found in bedrooms and the living room.,,1
+e1_15,category,gemini_full,llm,1,1.0000,1.0000,1,1.3671,LR B1 B2 D E K,book,"Books are typically found in living rooms, bedrooms, or dining areas where people read.",,1
+e1_16,category,gemini_full,llm,1,0.0000,0.0000,1,0.9174,K LR D E B1 B2,cup; bowl; bottle,"Tableware such as cups, bowls, and bottles are primarily kept and used in the kitchen and dining area, or sometimes the living room.",,1
+e1_17,category,gemini_full,llm,1,1.0000,1.0000,1,1.0606,K LR D B1 B2 E,bottle; cup,Beverage containers like bottles and cups are most commonly found in the kitchen and living room.,,1
+e1_18,category,gemini_full,llm,1,1.0000,1.0000,1,0.8867,LR B1 B2 K D E,laptop; cell phone,Devices with screens such as laptops and cell phones are most commonly found in living areas and bedrooms.,,1
+e1_19,need,gemini_full,llm,1,1.0000,1.0000,1,1.1304,K LR D E B2 B1,bottle; cup,"Being thirsty implies looking for a drink, so bottles and cups are searched for mostly in the kitchen.",,1
+e1_20,need,gemini_full,llm,1,1.0000,1.0000,1,0.9390,K LR D E B2 B1,sandwich; apple; banana; orange,"Hunger implies food items are needed, which are most likely found in the kitchen or living room.",,1
+e1_21,need,gemini_full,llm,1,1.0000,1.0000,1,1.0017,LR B1 B2 D E K,book,Reading materials are typically found in living and sleeping areas where people sit to read.,,1
+e1_22,need,gemini_full,llm,1,1.0000,1.0000,1,0.8573,LR K B1 B2 E D,cell phone,Cell phones are most commonly found in living areas and bedrooms where people relax.,,1
+e1_23,need,gemini_full,llm,1,1.0000,1.0000,1,1.0522,LR B1 B2 E K D,remote; cell phone; laptop,Watching TV usually happens in the living room where entertainment devices like remotes are found.,,1
+e1_24,need,gemini_full,llm,1,0.0000,1.0000,1,1.0725,LR B1 B2 K D E,laptop; book; cell phone,"Working typically involves a laptop, book, or cell phone, which are commonly found in living rooms and bedrooms.",,1
+e1_25,need,gemini_full,llm,1,1.0000,1.0000,1,1.0505,K LR D E B1 B2,apple; banana; orange; sandwich,"Snacks are food items usually found in the kitchen or dining area, with some possibility in the living room.",,1
+e1_26,need,gemini_full,llm,1,0.5000,1.0000,1,1.1891,LR B1 B2 E K D,teddy bear,"Something to cuddle usually implies a teddy bear, which is most likely found in bedrooms or the living room.",,1
+e1_27,need,gemini_full,llm,1,1.0000,1.0000,1,1.1254,LR K B1 B2 D E,laptop; cell phone,"Checking email typically requires a laptop or cell phone, which are commonly used in the living room, bedrooms, or kitchen.",,1
+e1_28,relational,gemini_full,llm,1,0.5000,1.0000,1,1.1361,E LR D B1 K B2,cup,The kitchen has doors connecting directly to the entry hall and the living room.,,1
+e1_29,relational,gemini_full,llm,1,1.0000,1.0000,1,1.0973,B1 B2 E K LR D,book,"Both bedrooms are next to the living room, so probability is split between them for the requested book.",,1
+e1_30,relational,gemini_full,llm,1,0.5000,1.0000,1,1.0580,K LR D B2 E B1,remote,The entry hall is connected by a door to the kitchen and the living room.,,1
+e1_31,relational,gemini_full,llm,1,1.0000,1.0000,1,1.1712,LR B1 B2 E K D,banana,"The dining area only has a door connected to the living room, so the search is constrained to the living room.",,1
+e1_32,relational,gemini_full,llm,1,1.0000,1.0000,1,1.1299,B1 B2 LR E K D,laptop,"The command specifies searching for a laptop in a bedroom, so bedrooms 1 and 2 receive almost all the probability.",,1
+e1_33,relational,gemini_full,llm,1,1.0000,1.0000,1,1.0028,K LR E B1 D B2,apple; banana; orange; sandwich,"The entry hall is connected by a door to the kitchen and the living room, where food items might be found.",,1
+e1_34,relational,gemini_full,llm,1,1.0000,1.0000,1,1.2200,K LR E D B2 B1,bottle,"The command explicitly names the kitchen, so almost all probability is allocated there.",,1
+e1_35,relational,gemini_full,llm,1,1.0000,1.0000,1,1.1171,LR E D B1 B2 K,teddy bear,The living room is the only room connected to both the kitchen and the two bedrooms.,,1
+e1_36,relational,gemini_full,llm,1,1.0000,1.0000,1,0.9369,LR K E D B2 B1,cup,"Bedroom 2 is only connected by a door to the living room, so that is the target room.",,1
+e1_37,explicit,gemini_full,llm,1,1.0000,1.0000,1,1.0743,K LR D E B1 B2,apple,Apples are most commonly kept in the kitchen or dining area.,,1
+e1_38,explicit,gemini_full,llm,1,1.0000,1.0000,1,0.8878,K LR D E B2 B1,sandwich,Sandwiches are typically prepared in the kitchen or eaten in the living room and dining area.,,1
+e1_39,explicit,gemini_full,llm,1,1.0000,1.0000,1,1.0402,K LR D E B2 B1,bowl,"Bowls are most commonly kept and used in the kitchen, followed by dining areas and living rooms.",,1
+e1_01,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,0.8909,K D LR E B1 B2,banana,Bananas are typically stored and eaten in the kitchen or dining area.,,1
+e1_02,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,1.1625,LR D B1 B2 E K,remote,"Remotes are most commonly found in the living room near a TV or seating area, though they can be in bedrooms.",,1
+e1_03,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,0.9506,LR B1 B2 K D E,laptop,"Laptops are most commonly used in the living room, bedrooms, or offices.",,1
+e1_04,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,1.1263,K LR D E B1 B2,cup,"Cups are most commonly found in the kitchen, living room, or dining area.",,1
+e1_05,explicit,gemini_names_only,llm,1,0.0000,1.0000,1,1.0759,LR B1 B2 E K D,teddy bear,Teddy bears are usually found in bedrooms or living rooms.,,1
+e1_06,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,1.0370,LR B1 B2 D E K,book,Books are most commonly found in living rooms and bedrooms.,,1
+e1_07,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,1.3240,K LR D B1 B2 E,bottle,"Bottles are most commonly found in the kitchen, living room, or dining area.",,1
+e1_08,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,1.2298,LR B1 K B2 D E,cell phone,"Cell phones are typically found in living areas, bedrooms, or the kitchen where people frequently use or place them.",,1
+e1_09,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,0.7889,K D LR E B1 B2,orange,Oranges are fruits most commonly found in the kitchen or dining area.,,1
+e1_10,category,gemini_names_only,llm,1,1.0000,1.0000,1,0.8759,K D LR E B1 B2,banana; apple; orange; sandwich,Food items are most commonly found in the kitchen and dining area.,,1
+e1_11,category,gemini_names_only,llm,1,1.0000,1.0000,1,1.1731,K D LR E B2 B1,banana; apple; orange,Fruit is typically stored or prepared in the kitchen or dining area.,,1
+e1_12,category,gemini_names_only,llm,1,1.0000,1.0000,1,1.0042,K D LR E B2 B1,cup; bottle; bowl,Things to drink from like cups and bottles are primarily found in the kitchen and dining area.,,1
+e1_13,category,gemini_names_only,llm,1,1.0000,1.0000,1,0.7992,LR B1 B2 D E K,remote; cell phone; laptop,"Electronics such as remotes, cell phones, and laptops are commonly found in living rooms and bedrooms.",,1
+e1_14,category,gemini_names_only,llm,1,1.0000,1.0000,1,1.3838,LR B1 B2 E K D,teddy bear,Toys like teddy bears are most commonly found in bedrooms and living rooms.,,1
+e1_15,category,gemini_names_only,llm,1,1.0000,1.0000,1,1.3365,LR B1 B2 D E K,book,Books are commonly found in living rooms and bedrooms where people relax and read.,,1
+e1_16,category,gemini_names_only,llm,1,0.0000,1.0000,1,0.9478,K D LR E B1 B2,cup; bowl; bottle,Tableware such as cups and bowls are predominantly found in the kitchen and dining area.,,1
+e1_17,category,gemini_names_only,llm,1,1.0000,1.0000,1,0.9822,K LR D E B1 B2,bottle; cup,"Beverage containers like bottles and cups are most commonly found in the kitchen, living room, and dining area.",,1
+e1_18,category,gemini_names_only,llm,1,1.0000,1.0000,1,1.1240,LR B1 B2 K D E,cell phone; laptop,Devices with screens such as phones and laptops are most commonly found in living rooms and bedrooms.,,1
+e1_19,need,gemini_names_only,llm,1,1.0000,1.0000,1,1.4685,K LR D E B1 B2,bottle; cup,"Thirst implies looking for a drink, so bottles and cups are likely, primarily in the kitchen.",,1
+e1_20,need,gemini_names_only,llm,1,1.0000,1.0000,1,1.0984,K D LR E B1 B2,sandwich; apple; banana; orange; bowl; cup,"Hunger implies food items, which are most likely found in the kitchen and dining area.",,1
+e1_21,need,gemini_names_only,llm,1,1.0000,1.0000,1,0.8180,LR B1 B2 D E K,book,Reading a book typically happens in living areas or bedrooms.,,1
+e1_22,need,gemini_names_only,llm,1,1.0000,1.0000,1,0.9653,LR K B1 B2 D E,cell phone,"To make a call, the user is looking for a cell phone, which is most likely in the living room or bedrooms.",,1
+e1_23,need,gemini_names_only,llm,1,1.0000,1.0000,1,1.1711,LR B1 B2 E K D,remote; cell phone,"Watching TV typically involves using a remote control, which is most commonly found in the living room.",,1
+e1_24,need,gemini_names_only,llm,1,0.0000,1.0000,1,1.0538,LR B1 D B2 K E,laptop; book; cell phone,"Working typically involves a laptop, books, or phone, which are usually found in living rooms, bedrooms, or dining areas.",,1
+e1_25,need,gemini_names_only,llm,1,1.0000,1.0000,1,1.4903,K D LR E B2 B1,banana; apple; orange; sandwich,"Snacks are typically found in the kitchen or dining area, with some chance of being in the living room.",,1
+e1_26,need,gemini_names_only,llm,1,0.5000,1.0000,1,1.2200,LR B1 B2 E K D,teddy bear,Children usually keep cuddling items like teddy bears in their bedrooms or the living room.,,1
+e1_27,need,gemini_names_only,llm,1,1.0000,1.0000,1,1.1215,LR B1 B2 K D E,laptop; cell phone,"Checking email typically requires a laptop or cell phone, which are most commonly found in living rooms and bedrooms.",,1
+e1_28,relational,gemini_names_only,llm,1,0.5000,1.0000,1,1.3029,E LR K B1 B2 D,cup,"The kitchen has doors connecting to the entry hall and the living room, so those are the rooms next to the kitchen.",,1
+e1_29,relational,gemini_names_only,llm,1,1.0000,1.0000,1,0.9926,B1 B2 E K LR D,book,"The command mentions a bedroom next to the living room, but both bedrooms are connected to the living room.",,1
+e1_30,relational,gemini_names_only,llm,1,0.5000,1.0000,1,1.2762,K LR E B1 B2 D,remote,"Remotes are typically in the kitchen or living room, which are the rooms connected to the entry hall.",,1
+e1_31,relational,gemini_names_only,llm,1,0.0000,0.0000,0,1.2140,E K LR D B1 B2,banana,The rooms directly connected to the dining area are the entry hall and the kitchen.,,1
+e1_32,relational,gemini_names_only,llm,1,1.0000,1.0000,1,0.9428,B2 B1 LR E K D,laptop,"The command explicitly asks to look for a laptop in a bedroom, so probability is split between bedroom 1 and bedroom 2.",,1
+e1_33,relational,gemini_names_only,llm,1,0.0000,0.5000,0,1.0818,LR E K D B1 B2,sandwich; apple; banana; orange,The living room is next to the entry hall and is the room constrained by the command for food items.,,1
+e1_34,relational,gemini_names_only,llm,1,1.0000,1.0000,1,1.0186,K LR D E B1 B2,bottle,"The command explicitly names the kitchen, so almost all probability is allocated there.",,1
+e1_35,relational,gemini_names_only,llm,1,1.0000,1.0000,1,1.2670,LR E K D B2 B1,teddy bear,The living room is typically connected to the kitchen and both bedrooms in this floorplan layout.,,1
+e1_36,relational,gemini_names_only,llm,1,0.0000,0.0000,0,0.9856,E K LR D B1 B2,cup,"Bedroom 2 is connected only to the entry hall, which is therefore the room next to it.",,1
+e1_37,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,0.7167,K D LR E B1 B2,apple,Apples are primarily stored or consumed in the kitchen and dining area.,,1
+e1_38,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,0.9568,K LR D E B1 B2,sandwich,"Sandwiches are typically prepared and eaten in the kitchen, living room, or dining area.",,1
+e1_39,explicit,gemini_names_only,llm,1,1.0000,1.0000,1,0.8759,K D LR E B1 B2,bowl,Bowls are primarily found in kitchens and dining areas.,,1

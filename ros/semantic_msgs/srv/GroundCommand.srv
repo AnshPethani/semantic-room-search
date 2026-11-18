@@ -1,0 +1,12 @@
+string command
+---
+bool success
+string error
+string[] targets
+semantic_msgs/RoomProb[] room_prior
+string[] room_constraint        # empty means none
+string rationale
+float32 latency_s
+string model
+bool cache_hit
+string source                   # "llm", "cache" or "fallback"

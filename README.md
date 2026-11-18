@@ -31,6 +31,12 @@ python -m lang_grounding.ground "find the banana" --backend fake --no-log
 python -m lang_grounding.ground "find the banana" --backend gemini --no-log
 ```
 
+## ROS 2
+
+`ros/semantic_msgs` (messages and the `/ground_command` service type) and `ros/lang_grounding_ros`
+(a thin service node around this library) are built in the separate pixi environment, not in the
+`.venv`. Setup, run commands and parameters: [docs/ROS.md](docs/ROS.md).
+
 ## Tests and lint
 
 ```

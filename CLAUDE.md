@@ -20,4 +20,4 @@ Project: LLM-Grounded Semantic Object Search in a Known Floorplan (CSC 591 Advan
 - docs/: design docs (DESIGN_DECISIONS.md)
 - data/: scene graph and other data files
 - configs/: configuration files
-- ros/: ROS 2 packages (house_sim exists: simulation, Nav2, objects). ROS wrappers around lang_grounding go here as thin packages.
+- ros/: ROS 2 packages: house_sim (simulation, Nav2, objects), semantic_msgs (shared interfaces) and lang_grounding_ros (the thin /ground_command node around lang_grounding; no grounding logic in it). Setup and run: docs/ROS.md. They are built in the separate pixi environment, not in the .venv; the ROS-free parts of lang_grounding_ros are tested in tests/test_ros_node.py.

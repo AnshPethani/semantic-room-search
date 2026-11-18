@@ -1,0 +1,157 @@
+id,type,method,source,attempts,top1,top2,constraint_ok,latency_s,ranked_rooms,targets,rationale,fallback_reason,passes
+e1_01,explicit,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,banana,Keyword fallback matched: banana.,,1
+e1_02,explicit,keyword,keyword,0,1.0000,1.0000,,,LR B1 B2 K E D,remote,Keyword fallback matched: remote.,,1
+e1_03,explicit,keyword,keyword,0,1.0000,1.0000,,,LR B1 B2 D E K,laptop,Keyword fallback matched: laptop.,,1
+e1_04,explicit,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,cup,Keyword fallback matched: cup.,,1
+e1_05,explicit,keyword,keyword,0,1.0000,1.0000,,,B1 B2 LR E K D,teddy bear,Keyword fallback matched: teddy bear.,,1
+e1_06,explicit,keyword,keyword,0,1.0000,1.0000,,,LR B1 B2 E K D,book,Keyword fallback matched: book.,,1
+e1_07,explicit,keyword,keyword,0,1.0000,1.0000,,,K D LR B1 B2 E,bottle,Keyword fallback matched: bottle.,,1
+e1_08,explicit,keyword,keyword,0,1.0000,1.0000,,,LR B1 B2 K E D,cell phone,Keyword fallback matched: cell phone.,,1
+e1_09,explicit,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,orange,Keyword fallback matched: orange.,,1
+e1_10,category,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,banana; apple; orange; sandwich,Keyword fallback matched: food.,,1
+e1_11,category,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,banana; apple; orange; sandwich,Keyword fallback matched: fruit.,,1
+e1_12,category,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,cup; bottle,Keyword fallback matched: drink.,,1
+e1_13,category,keyword,keyword,0,1.0000,1.0000,,,LR B1 B2 K D E,laptop; remote; cell phone,Keyword fallback matched: electronics.,,1
+e1_14,category,keyword,keyword,0,1.0000,1.0000,,,B1 B2 LR E K D,teddy bear,Keyword fallback matched: toy.,,1
+e1_15,category,keyword,keyword,0,1.0000,1.0000,,,LR B1 B2 E K D,book,Keyword fallback matched: read.,,1
+e1_16,category,keyword,keyword,0,0.1667,0.3333,,,E K LR D B1 B2,banana; apple; orange; sandwich; bottle; cup; bowl; book; laptop; remote; cell phone; teddy bear,Keyword fallback: no keyword matched; uniform prior over all rooms.,,1
+e1_17,category,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,cup; bottle,Keyword fallback matched: beverage.,,1
+e1_18,category,keyword,keyword,0,1.0000,1.0000,,,LR B1 B2 K D E,laptop; remote; cell phone,Keyword fallback matched: device.,,1
+e1_19,need,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,cup; bottle,Keyword fallback matched: thirsty.,,1
+e1_20,need,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,banana; apple; orange; sandwich,Keyword fallback matched: hungry.,,1
+e1_21,need,keyword,keyword,0,1.0000,1.0000,,,LR B1 B2 E K D,book,Keyword fallback matched: read.,,1
+e1_22,need,keyword,keyword,0,0.5000,0.8000,,,E K LR D B1 B2,banana; apple; orange; sandwich; bottle; cup; bowl; book; laptop; remote; cell phone; teddy bear,Keyword fallback: no keyword matched; uniform prior over all rooms.,,1
+e1_23,need,keyword,keyword,0,0.5000,0.8000,,,E K LR D B1 B2,banana; apple; orange; sandwich; bottle; cup; bowl; book; laptop; remote; cell phone; teddy bear,Keyword fallback: no keyword matched; uniform prior over all rooms.,,1
+e1_24,need,keyword,keyword,0,0.3333,0.6000,,,E K LR D B1 B2,banana; apple; orange; sandwich; bottle; cup; bowl; book; laptop; remote; cell phone; teddy bear,Keyword fallback: no keyword matched; uniform prior over all rooms.,,1
+e1_25,need,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,banana; apple; orange; sandwich,Keyword fallback matched: snack.,,1
+e1_26,need,keyword,keyword,0,0.3333,0.6000,,,E K LR D B1 B2,banana; apple; orange; sandwich; bottle; cup; bowl; book; laptop; remote; cell phone; teddy bear,Keyword fallback: no keyword matched; uniform prior over all rooms.,,1
+e1_27,need,keyword,keyword,0,0.5000,0.8000,,,E K LR D B1 B2,banana; apple; orange; sandwich; bottle; cup; bowl; book; laptop; remote; cell phone; teddy bear,Keyword fallback: no keyword matched; uniform prior over all rooms.,,1
+e1_28,relational,keyword,keyword,0,0.0000,0.0000,,,K D LR E B1 B2,cup,Keyword fallback matched: cup.,,1
+e1_29,relational,keyword,keyword,0,0.6667,1.0000,,,LR B1 B2 E K D,book,Keyword fallback matched: book.,,1
+e1_30,relational,keyword,keyword,0,1.0000,1.0000,,,LR B1 B2 K E D,remote,Keyword fallback matched: remote.,,1
+e1_31,relational,keyword,keyword,0,0.0000,0.0000,,,K D LR E B1 B2,banana,Keyword fallback matched: banana.,,1
+e1_32,relational,keyword,keyword,0,0.0000,1.0000,,,LR B1 B2 D E K,laptop,Keyword fallback matched: laptop.,,1
+e1_33,relational,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,banana; apple; orange; sandwich,Keyword fallback matched: eat.,,1
+e1_34,relational,keyword,keyword,0,1.0000,1.0000,,,K D LR B1 B2 E,bottle,Keyword fallback matched: bottle.,,1
+e1_35,relational,keyword,keyword,0,0.0000,0.0000,,,B1 B2 LR E K D,teddy bear,Keyword fallback matched: teddy bear.,,1
+e1_36,relational,keyword,keyword,0,0.0000,0.0000,,,K D LR E B1 B2,cup,Keyword fallback matched: cup.,,1
+e1_37,explicit,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,apple,Keyword fallback matched: apple.,,1
+e1_38,explicit,keyword,keyword,0,1.0000,1.0000,,,K D LR E B1 B2,sandwich,Keyword fallback matched: sandwich.,,1
+e1_39,explicit,keyword,keyword,0,1.0000,1.0000,,,K D LR B1 B2 E,bowl,Keyword fallback matched: bowl.,,1
+e1_01,explicit,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_02,explicit,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_03,explicit,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_04,explicit,uniform,uniform,0,0.6667,0.9333,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_05,explicit,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_06,explicit,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_07,explicit,uniform,uniform,0,0.8333,1.0000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_08,explicit,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_09,explicit,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_10,category,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_11,category,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_12,category,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_13,category,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_14,category,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_15,category,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_16,category,uniform,uniform,0,0.1667,0.3333,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_17,category,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_18,category,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_19,need,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_20,need,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_21,need,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_22,need,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_23,need,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_24,need,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_25,need,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_26,need,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_27,need,uniform,uniform,0,0.5000,0.8000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_28,relational,uniform,uniform,0,0.1667,0.3333,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_29,relational,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_30,relational,uniform,uniform,0,0.1667,0.3333,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_31,relational,uniform,uniform,0,0.1667,0.3333,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_32,relational,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_33,relational,uniform,uniform,0,0.1667,0.3333,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_34,relational,uniform,uniform,0,0.1667,0.3333,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_35,relational,uniform,uniform,0,0.1667,0.3333,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_36,relational,uniform,uniform,0,0.1667,0.3333,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_37,explicit,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_38,explicit,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_39,explicit,uniform,uniform,0,0.3333,0.6000,,,E K LR D B1 B2,,Uniform prior over all rooms.,,1
+e1_01,explicit,ollama_full,llm,1,0.0000,1.0000,1,8.8052,E K LR D B1 B2,banana,"Bananas are often kept in the kitchen or entry hall, but can also be in the living room or dining area.",,1
+e1_02,explicit,ollama_full,llm,1,1.0000,1.0000,1,4.2076,LR E K D B1 B2,remote,"Remotes are often kept in living areas or entry halls, but can also be in kitchens.",,1
+e1_03,explicit,ollama_full,llm,2,1.0000,1.0000,1,4.0693,LR B1 B2 E K D,laptop,"Laptops are often used in living and sleeping areas, but can also be found in entry hall and kitchen.",,1
+e1_04,explicit,ollama_full,llm,1,0.0000,1.0000,1,3.9468,E K LR D B1 B2,cup,"Cups are often used in the kitchen or entry hall, but can also be found in the living room.",,1
+e1_05,explicit,ollama_full,llm,1,0.6667,1.0000,1,4.3792,E B1 B2 K LR D,teddy bear,"Teddy bears are often kept in bedrooms or living areas, but can also be found in entry halls or kitchens.",,1
+e1_06,explicit,ollama_full,llm,1,0.6667,1.0000,1,3.6848,E B1 B2 K LR D,book,"Books can be found in various rooms, so a uniform distribution is a reasonable guess.",,1
+e1_07,explicit,ollama_full,llm,1,0.0000,1.0000,1,3.8374,E K LR D B1 B2,bottle,"Bottles are often found in entry halls, kitchens, and living rooms, but can be anywhere.",,1
+e1_08,explicit,ollama_full,llm,1,0.0000,0.0000,1,3.8982,E K LR D B1 B2,cell phone,"Cell phones are often kept in entry halls or kitchens, but can be found in other rooms as well.",,1
+e1_09,explicit,ollama_full,llm,1,0.0000,1.0000,1,3.9171,E K LR D B1 B2,orange,"Oranges are usually kept in the kitchen or entry hall, but can also be in the living room or dining area.",,1
+e1_10,category,ollama_full,llm,2,0.3333,0.6667,1,4.4862,E K LR D B1 B2,sandwich; bottle; cup; bowl,"Food is usually found in the kitchen or dining area, but can also be in the entry hall or living room.",,1
+e1_11,category,ollama_full,llm,1,0.5000,1.0000,1,4.2199,E K LR D B1 B2,banana; apple; orange,"Fruits are commonly found in the kitchen or entry hall, but can also be in the living room or dining area.",,1
+e1_12,category,ollama_full,llm,1,0.0000,1.0000,1,4.0767,E K LR D B1 B2,bottle; cup,"People usually drink from bottles or cups in the entry hall, kitchen, or living room.",,1
+e1_13,category,ollama_full,llm,1,1.0000,1.0000,1,4.1035,LR K B1 B2 E D,laptop; remote; cell phone,"Electronics are often found in living areas and entry hall, but also in bedrooms and kitchen.",,1
+e1_14,category,ollama_full,llm,1,0.6667,1.0000,1,3.7845,E B1 B2 K LR D,teddy bear,"Toys are often found in living areas or entry halls, but also in bedrooms.",,1
+e1_15,category,ollama_full,llm,1,1.0000,1.0000,1,3.7372,LR E K B1 D B2,book; laptop,"People often read in various rooms, so several possibilities are plausible.",,1
+e1_16,category,ollama_full,llm,1,0.0000,0.0000,1,4.3092,E K LR D B1 B2,bowl; cup; sandwich,"Tableware is often found in the entry hall, kitchen, and dining area, but can also be in the living room.",,1
+e1_17,category,ollama_full,llm,1,0.0000,0.5000,1,4.1809,E K LR D B1 B2,bottle; cup; bowl,"Beverage containers are commonly found in kitchens and entry halls, but also in dining and living areas.",,1
+e1_18,category,ollama_full,llm,1,1.0000,1.0000,1,4.3103,LR D B1 B2 E K,laptop; cell phone; remote,"Devices with screens are often used in living areas or bedrooms, but can also be found in the entry hall or kitchen.",,1
+e1_19,need,ollama_full,llm,1,0.0000,1.0000,1,4.4078,E K LR D B1 B2,bottle; cup; bowl,"Thirst is usually quenched with a drink, so bottles, cups, and bowls are plausible, mostly in entry hall and kitchen.",,1
+e1_20,need,ollama_full,llm,1,0.0000,0.5000,1,4.6164,E K LR D B1 B2,sandwich; bottle; cup; bowl,"Hunger suggests looking for food, which is often found in the kitchen or entry hall, but also in the dining area or living room.",,1
+e1_21,need,ollama_full,llm,1,0.6667,1.0000,1,4.1249,E B1 B2 K LR D,book; laptop,"Reading can happen in various rooms, but a book is more likely to be found in a living or sleeping area.",,1
+e1_22,need,ollama_full,llm,1,0.0000,0.0000,1,4.2948,E K LR D B1 B2,cell phone; laptop,"Cell phones and laptops are usually found in areas where people spend time, such as the entry hall, kitchen, or living room.",,1
+e1_23,need,ollama_full,llm,1,0.0000,0.0000,1,4.8499,E K LR D B1 B2,remote; laptop; cell phone,"TV watching is most likely in the living room, but a remote could be in the entry hall, kitchen, or dining area, and a laptop or cell phone could be anywhere.",,1
+e1_24,need,ollama_full,llm,1,0.0000,0.0000,1,4.4716,E K LR D B1 B2,laptop; book,"Work is often done at a desk, which is likely to be in the entry hall or kitchen, but also possible in the living room or dining area.",,1
+e1_25,need,ollama_full,llm,1,0.0000,0.5000,1,4.6151,E K LR D B1 B2,sandwich; bottle; cup; bowl,"A snack is a common request, so several food and drink items are plausible, mostly in the entry hall, kitchen, and living room.",,1
+e1_26,need,ollama_full,llm,1,0.0000,0.0000,1,4.0296,E K LR D B1 B2,teddy bear,"Children often cuddle with toys in the entry hall or living room, but it's also possible in other rooms.",,1
+e1_27,need,ollama_full,llm,1,0.0000,0.0000,1,4.2829,E K LR D B1 B2,laptop; cell phone,"Email is usually checked on a laptop or cell phone, which are often found in entry hall, kitchen, or living room.",,1
+e1_28,relational,ollama_full,llm,1,0.0000,0.0000,0,3.8396,E K LR D B1 B2,cup,"The room next to the kitchen is the entry hall, so most probability goes there.",,1
+e1_29,relational,ollama_full,fallback,2,0.0000,0.0000,0,,,,,invalid_output,1
+e1_30,relational,ollama_full,llm,1,0.0000,0.0000,0,4.2028,E K LR D B1 B2,remote,"The entry hall has doors to the kitchen and living room, so those rooms are most likely to have the remote.",,1
+e1_31,relational,ollama_full,llm,1,0.0000,0.0000,1,3.9261,E K LR D B1 B2,banana,"The dining area is in the living room, so the room next to the dining area is the living room.",,1
+e1_32,relational,ollama_full,fallback,2,0.0000,0.0000,0,,,,,invalid_output,1
+e1_33,relational,ollama_full,llm,1,0.0000,1.0000,0,4.6147,E K LR D B1 B2,sandwich; bottle; cup; bowl,"The room next to the entry hall is the kitchen, so most probability goes there, and several food-related objects are plausible.",,1
+e1_34,relational,ollama_full,llm,1,1.0000,1.0000,1,3.5508,K E LR D B1 B2,bottle,"The command names the kitchen, so most probability goes there.",,1
+e1_35,relational,ollama_full,llm,2,1.0000,1.0000,0,4.8955,LR B1 B2 E K D,teddy bear,"The teddy bear is likely to be in a bedroom, but also possible in the living room, kitchen, or entry hall, given the connections.",,1
+e1_36,relational,ollama_full,llm,1,0.0000,0.0000,1,4.1145,E K LR D B1 B2,cup,"The room next to bedroom 2 is the living room, so most probability goes there.",,1
+e1_37,explicit,ollama_full,llm,1,0.0000,1.0000,1,3.9038,E K LR D B1 B2,apple,"Apples are often eaten in the entry hall or kitchen, but can also be in the living room or dining area.",,1
+e1_38,explicit,ollama_full,llm,1,0.0000,1.0000,1,3.9117,E K LR D B1 B2,sandwich,"Sandwiches are often eaten in the entry hall or kitchen, but can also be in the living room.",,1
+e1_39,explicit,ollama_full,llm,1,0.0000,1.0000,1,3.9793,E K LR D B1 B2,bowl,"Bowl is often used in the kitchen or entry hall, but can also be in the living room or dining area.",,1
+e1_01,explicit,ollama_names_only,llm,1,0.0000,1.0000,1,5.8261,E K LR D B1 B2,banana,"Bananas are often kept in the kitchen or entry hall, but can also be in other rooms.",,1
+e1_02,explicit,ollama_names_only,llm,1,0.0000,0.0000,1,4.3930,E K LR D B1 B2,remote,"Remotes are often kept in entry halls or living rooms, but can also be in kitchens or dining areas.",,1
+e1_03,explicit,ollama_names_only,llm,1,0.0000,0.0000,1,4.1522,E K LR D B1 B2,laptop,"Laptops are often used in entry halls or kitchens, but can also be found in living rooms or bedrooms.",,1
+e1_04,explicit,ollama_names_only,llm,1,0.0000,1.0000,1,4.0974,E K LR D B1 B2,cup,"Cups are often used in the entry hall or kitchen, but can also be in the living room or dining area.",,1
+e1_05,explicit,ollama_names_only,llm,1,0.0000,0.0000,1,4.3649,E K LR D B1 B2,teddy bear,"Teddy bears are often kept in entry halls or living rooms, but can also be in other rooms.",,1
+e1_06,explicit,ollama_names_only,llm,1,0.0000,0.5000,1,3.9292,E K LR D B1 B2,book,"Books can be found in various rooms, so a general probability distribution is used.",,1
+e1_07,explicit,ollama_names_only,llm,1,0.0000,1.0000,1,3.7884,E K LR D B1 B2,bottle,"Bottles are commonly found in entry halls, kitchens, and living rooms.",,1
+e1_08,explicit,ollama_names_only,llm,1,0.0000,0.0000,1,4.3998,E K LR D B1 B2,cell phone,"Cell phones are often kept in entry halls or kitchens, but can be found in other rooms as well.",,1
+e1_09,explicit,ollama_names_only,llm,1,0.0000,1.0000,1,4.4394,E K LR D B1 B2,orange,"Oranges are often kept in the entry hall or kitchen, but can also be in other rooms.",,1
+e1_10,category,ollama_names_only,fallback,2,0.0000,0.0000,0,,,,,invalid_output,1
+e1_11,category,ollama_names_only,llm,1,0.5000,1.0000,1,5.0167,E K LR D B2 B1,banana; apple; orange,"Fruits are commonly found in entry hall, kitchen, and living room.",,1
+e1_12,category,ollama_names_only,llm,1,0.0000,1.0000,1,5.0941,E K LR D B1 B2,bottle; cup,"People often drink from cups or bottles in various rooms, but the entry hall and kitchen are the most likely places.",,1
+e1_13,category,ollama_names_only,llm,1,0.0000,0.0000,1,4.8593,E K LR D B1 B2,laptop; cell phone; remote,"Electronics are often found in entry halls, kitchens, and living rooms.",,1
+e1_14,category,ollama_names_only,llm,1,0.0000,0.0000,1,4.7754,E K LR D B1 B2,teddy bear,"Toys are often found in entry halls or living rooms, but can also be in other rooms.",,1
+e1_15,category,ollama_names_only,llm,1,0.0000,0.0000,1,4.5078,E K LR D B1 B2,book,"People often read in entry halls or kitchens, but also in living rooms and dining areas.",,1
+e1_16,category,ollama_names_only,llm,1,0.0000,0.0000,1,4.6953,E K LR D B1 B2,bowl; cup; sandwich,"Tableware is often found in entry halls, kitchens, and dining areas.",,1
+e1_17,category,ollama_names_only,llm,1,0.0000,0.5000,1,4.7907,E K LR D B1 B2,bottle; cup; bowl,"Beverage containers are commonly found in entry hall, kitchen, and living room.",,1
+e1_18,category,ollama_names_only,llm,1,0.0000,0.0000,1,4.6684,E K LR D B1 B2,laptop; cell phone,"Devices with screens are often used in entry halls, kitchens, and living rooms.",,1
+e1_19,need,ollama_names_only,llm,1,0.0000,1.0000,1,4.9438,E K LR D B1 B2,bottle; cup,"Thirst is usually quenched with a drink, so bottles and cups are plausible, mostly in entry hall and kitchen.",,1
+e1_20,need,ollama_names_only,llm,1,0.0000,0.5000,1,5.2884,E K LR D B1 B2,sandwich; bottle; cup; bowl,"Hunger suggests food, so several food-related items are plausible, mostly in the entry hall and kitchen.",,1
+e1_21,need,ollama_names_only,llm,1,0.0000,0.5000,1,4.8425,E K LR D B1 B2,book,"Reading is a common activity in entry halls and living rooms, but can also occur in other rooms.",,1
+e1_22,need,ollama_names_only,llm,1,0.0000,0.0000,1,5.0746,E K LR D B1 B2,cell phone; laptop,"Cell phones and laptops are usually found in the entry hall or kitchen, but laptops can also be in the living room.",,1
+e1_23,need,ollama_names_only,llm,1,0.0000,0.0000,1,5.3571,E K LR D B1 B2,remote; laptop; cell phone,"TV watching is most likely in the entry hall or kitchen, but laptops and cell phones can also be used for streaming.",,1
+e1_24,need,ollama_names_only,llm,1,0.0000,0.0000,1,5.5788,E K LR D B1 B2,laptop; book,"Work implies a laptop, but a book is also a plausible tool for productivity, so both are included, mostly likely in the entry hall or kitchen.",,1
+e1_25,need,ollama_names_only,llm,1,0.3333,0.6667,1,6.2244,E K LR D B1 B2,sandwich; bottle; cup; bowl; apple; banana; orange,"A snack can be anything, so several common snack items are plausible, mostly in the entry hall, kitchen, and living room.",,1
+e1_26,need,ollama_names_only,llm,1,0.0000,0.0000,1,5.2711,E K LR D B1 B2,teddy bear,"Children often cuddle with toys in the entry hall or living room, but it's also possible in other rooms.",,1
+e1_27,need,ollama_names_only,llm,1,0.0000,0.0000,1,5.5582,E K LR D B1 B2,laptop; cell phone,"Checking email is usually done on a laptop or cell phone, and these items are most likely to be found in the entry hall or kitchen.",,1
+e1_28,relational,ollama_names_only,llm,1,0.0000,0.0000,0,4.8071,E K LR D B1 B2,cup,"The room next to the kitchen is the entry hall, so most probability goes there.",,1
+e1_29,relational,ollama_names_only,fallback,2,0.0000,0.0000,0,,,,,invalid_output,1
+e1_30,relational,ollama_names_only,llm,1,0.0000,0.0000,0,6.4043,E K LR D B1 B2,remote,"The entry hall is likely to be connected to the kitchen, but also possibly to the living room or dining area, so these rooms also have some probability.",,1
+e1_31,relational,ollama_names_only,llm,1,0.0000,0.0000,0,5.6828,E K LR D B1 B2,banana,"The dining area is in the dining area, and the only room adjacent to it is the entry hall.",,1
+e1_32,relational,ollama_names_only,fallback,2,0.0000,0.0000,0,,,,,invalid_output,1
+e1_33,relational,ollama_names_only,llm,1,0.0000,1.0000,0,6.6736,E K LR D B1 B2,sandwich; bottle; cup; bowl,"The room next to the entry hall is the kitchen, so most probability goes there, but other food items could be in the entry hall or nearby rooms.",,1
+e1_34,relational,ollama_names_only,llm,1,1.0000,1.0000,1,4.7060,K LR E D B1 B2,bottle,"The command names the kitchen, so most probability goes there.",,1
+e1_35,relational,ollama_names_only,llm,1,0.0000,0.0000,0,6.1058,E K LR D B1 B2,teddy bear,"The kitchen and bedrooms are connected to the entry hall, so that is the most likely room, but other connected rooms are also possible.",,1
+e1_36,relational,ollama_names_only,llm,1,0.0000,0.0000,0,5.3838,E K LR D B1 B2,cup,"The room next to bedroom 2 is the entry hall, so most probability goes there.",,1
+e1_37,explicit,ollama_names_only,llm,1,0.5000,1.0000,1,4.8618,E K LR D B2 B1,apple,"Apples are often eaten in the entry hall or kitchen, but can also be in other rooms.",,1
+e1_38,explicit,ollama_names_only,llm,1,0.0000,1.0000,1,5.1153,E K LR D B1 B2,sandwich,"Sandwiches are often eaten in the entry hall or kitchen, but can also be in the living room or dining area.",,1
+e1_39,explicit,ollama_names_only,llm,1,0.0000,1.0000,1,4.7980,E K LR D B1 B2,bowl,"Bowl is often used in the entry hall or kitchen, but can be found elsewhere.",,1

@@ -648,10 +648,49 @@ string source                   # "yolo" or "oracle"
 - **Why:** the outputs named in the E1 request; a log written as the run goes survives an interrupted run.
 - **Alternatives:** one summary file only (no data for the failure analysis); writing the CSV incrementally too (only `calls.jsonl` is, to keep the writing simple).
 
+## Phase 5: ROS 2 interfaces and the grounding service
+
+### D-128 Package `semantic_msgs` and the `source` field
+- **Date:** 2026-11-17 | **Status:** Proposed (the `source` field awaits Kristika's confirmation; the rest implements the Agreed D-003 to D-005)
+- **Decision:** `ros/semantic_msgs` (ament_cmake, interfaces only, dependencies `std_msgs` and `geometry_msgs`) defines `msg/RoomProb.msg` (`room_id`, `prob`), `msg/Detection.msg` (`header` with frame `map`, `label`, `confidence`, `position`, `room_id`, `source` of `yolo` or `oracle`) and `srv/GroundCommand.srv` with the fields of "Interface specs" plus one new response field, `string source`, with values `llm`, `cache` or `fallback`. `cache_hit` stays (it equals `source == "cache"`). No other field changed.
+- **Why:** the planner and the evaluation can then tell a keyword-fallback answer from an LLM answer, which the proposal's recovery rules and E2/E3 reporting need; `cache_hit` alone cannot say that.
+- **Alternatives:** not exposing the source (a fallback prior would look like an LLM prior); replacing `cache_hit` by `source` (would change an Agreed interface for no gain).
+- **To confirm with Kristika:** the new `source` field of `GroundCommand.srv`, and that her planner treats a `fallback` answer as a usable prior.
+
+### D-129 Package `lang_grounding_ros` and the thin node
+- **Date:** 2026-11-17 | **Status:** Proposed
+- **Decision:** `ros/lang_grounding_ros` (ament_python) provides the node `/ground_command` (service type `semantic_msgs/srv/GroundCommand`, executable `ground_command_node`) and `launch/ground_command.launch.py`. Only `ground_command_node.py` imports rclpy and `semantic_msgs`. The rest is plain Python so it can be tested in the `.venv`: `mapping.py` (library result to response fields), `handler.py` (timeout and failure handling) and `grounder.py` (loads the files once and calls `lang_grounding.ground.ground()`); no library code is copied. Parameters: `scene_graph_file`, `vocabulary_file`, `config_file`, `env_file`, `log_dir`, `timeout_s` (default 20) and one addition, `backend` (`gemini` default, `ollama` or `fake`), because the library needs to know which backend to use. An empty file parameter means the library default; a relative path is relative to the repository root (D-105). The config (and `.env`, through the library's loader, D-120), scene graph, vocabulary, prompts, keyword table, backend, cache (the library's cache directory) and log (`<log_dir>/grounding.jsonl`) are loaded or created once at start; a setup problem (missing key or model, bad file) is logged and the node exits with code 1. The launch file uses repository-relative defaults (the repository found from the launch file in a symlink install, from `SEMANTIC_ROOM_SEARCH_ROOT`, or from the `repo_root` argument) and arguments `repo_root`, `backend`, `timeout_s`.
+- **Why:** D-010 (library plus thin wrapper); loading once keeps a call to the cost of the grounding itself; keeping the logic in plain modules makes it testable without ROS.
+- **Alternatives:** logic inside the node class (untestable without rclpy); calling `ground()` with its defaults (reloads the config and prompts on every call); a service that selects the backend per request (not needed, and the key would have to be available for every backend).
+
+### D-130 Failure behavior and the call timeout
+- **Date:** 2026-11-17 | **Status:** Proposed
+- **Decision:** A call returns `success: false` with a short one-line `error` (`ExceptionType: message`, at most 200 characters), `latency_s` set to the time spent, `source` empty and all other fields empty, when: the command is empty (the library is not called), the library raises, the call is not finished after `timeout_s` (`timed out after N s`), or the library result has an unexpected shape. The node never raises out of the callback. A result from the keyword fallback is not a failure: the library already answers backend errors and invalid output with the fallback (D-014), so that call returns `success: true` with `source: fallback`, the fallback prior and an empty `error`; the fallback reason stays in the JSONL log. A timed-out library call cannot be killed; it keeps running in a worker thread until the backend's own timeout (a start-up warning says when that is longer than `timeout_s`). `GroundingHandler` also cancels the call if it has not started.
+- **Why:** the planner always gets either a usable prior or a clear "no prior"; an exception inside an rclpy callback would stop the executor.
+- **Alternatives:** `success: false` for fallback answers (the planner would lose the prior that D-014 exists to provide); killing the worker (not possible for a thread; a process pool would cost more than it saves).
+- **To confirm with Kristika:** that her planner handles `success: false` (no prior: for example, search rooms in a default order) and `source: fallback`.
+
+### D-131 Threading
+- **Date:** 2026-11-17 | **Status:** Proposed
+- **Decision:** The node spins in a `MultiThreadedExecutor` with 4 threads and the service is in a `ReentrantCallbackGroup`. Each request waits, with the timeout, for a library call that runs in a worker thread pool of 4 threads (`GroundingHandler`), so a slow call neither blocks other callbacks nor lasts longer than `timeout_s` for its caller. The library calls share the cache (one file per key, written atomically), the logger (one appended line per call) and the backend objects (no mutable state in the Gemini and Ollama backends), which is safe for concurrent use. If calls keep timing out, the worker threads can all be busy with abandoned calls; later requests then time out too until those calls end.
+- **Why:** the planner and other nodes must keep running while a call is slow.
+- **Alternatives:** an asyncio service callback (support depends on the ROS distribution); calling the library directly in the callback (no timeout possible).
+
+### D-132 Import path, the pixi environment and unverified steps
+- **Date:** 2026-11-17 | **Status:** Proposed
+- **Decision:** ROS runs in a pixi (RoboStack) environment that is separate from the repository's Python 3.12 `.venv`. The node imports the library from the repository through `PYTHONPATH=<repo>/src` (set for the node by the launch file; set by hand for `ros2 run`), not by installing it, and pydantic must be installed in the pixi environment. `docs/ROS.md` lists the exact steps (`colcon build --symlink-install --base-paths ros --packages-select semantic_msgs lang_grounding_ros`, then source the install space). If the library cannot be imported, the node's import error says to set `PYTHONPATH` and install pydantic. Not verified yet because nothing was built or run: the colcon build and message generation, the Python version of the pixi environment against the library's `requires-python >= 3.12` (not checked when using `PYTHONPATH`), the imports, the `additional_env` and substitution parameters in the launch file, and the node under a real executor.
+- **Why:** D-010 and "do not duplicate library code into the ROS package".
+- **Alternatives:** `pip install -e .` in the pixi environment (fails if its Python is older than 3.12); copying the library into the ROS package (two copies to keep in sync).
+
 ## Open points to confirm with Kristika
-None at the moment. Former points 1–4 were answered by D-050, D-006, D-007 and D-074.
+1. The new `source` field of `GroundCommand.srv` (D-128).
+2. How her planner handles `success: false` and `source: fallback` answers (D-130).
+3. How `semantic_msgs` and `lang_grounding_ros` are built in her workspace (the `colcon build --base-paths ros` command in docs/ROS.md is an assumption).
+
+Former points 1–4 were answered by D-050, D-006, D-007 and D-074.
 
 ## Decision history
+- 2026-11-17: Phase 5 (ROS 2 interfaces and the `/ground_command` node): D-128 to D-132 proposed, written without building or running anything. New `source` field of `GroundCommand.srv` awaits Kristika.
 - 2026-11-16: Touch acceptance run (D-094) on the demo scenario: 11/12 passed against Gazebo truth (true gaps 0.046–0.048 m on the gap stop, 0.135–0.136 m on the depth stop, cell phone 0.000 m). The cup failed with 0 sightings and a false `gap` success; D-098 amended: whole-width first search and an `unseen` failure.
 - 2026-11-16: Step 7 verified in Gazebo (bottle true gap 0.136 m on the depth stop, banana ~0.047 m on the gap stop). Phase 3 step 8: D-093 (one-command trial launch) and D-094 (touch acceptance against Gazebo ground truth) proposed.
 - 2026-11-16: D-098 revised (floor-filtered depth tracking in the odom frame; depth stop 0.14 m) and D-099 updated after the Gazebo runs: depth showed the floor, and AMCL was 4–11 cm off at the targets.
