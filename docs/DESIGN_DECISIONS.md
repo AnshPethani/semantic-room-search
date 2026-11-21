@@ -688,10 +688,43 @@ string source                   # "yolo" or "oracle"
 - **Why:** D-010 and "do not duplicate library code into the ROS package".
 - **Alternatives:** `pip install -e .` in the pixi environment (fails if its Python is older than 3.12); copying the library into the ROS package (two copies to keep in sync).
 
+## Phase 6: Room-order planner and E2 baselines (both; written by Kristika's side)
+
+### D-140 Planner module: ROS-free, in `house_sim`
+- **Date:** 2026-11-20 | **Status:** Proposed (needs Ansh's review: planner and baselines are a "Both" item in the proposal)
+- **Decision:** The room-order planner and the three E2 baselines live in `ros/house_sim/scripts/room_order.py`, standard library only, tested with plain pytest in `tests/test_room_order.py` (importlib loading, like `touch_logic.py`). The task manager will call `next_room()` once per room, after each room is searched, because travel costs depend on the robot's current pose (greedy rule of the proposal, Step 2).
+- **Why:** the task manager will run next to the touch controller in `house_sim`, and the scripts there already share ROS-free helpers this way; no new package or `PYTHONPATH` setup.
+- **Alternatives:** `src/lang_grounding/planner.py` (puts search logic into the grounding library; the ROS side would need D-132's `PYTHONPATH` route); a new Python package (more setup for one module).
+
+### D-141 Cost terms of the ratio rule
+- **Date:** 2026-11-20 | **Status:** Proposed
+- **Decision:** `r* = argmax over unvisited r of P(r | u) / (c_travel(r) + c_search(r))`, both costs in meters. `c_travel(r)` is the path length from the robot's current pose to the room's nearest viewpoint: in the task manager from Nav2 (path to each viewpoint), offline and in tests the straight line (`straight_line_travel`, ignores walls). `c_search(r) = k × (number of viewpoints)`, with `k = search_cost_per_viewpoint = 2.5` m as a first guess for one 360° turn plus the short moves around it. To be replaced by the measured turn time × the robot's mean speed once the task manager runs.
+- **Why:** the proposal defines `c_travel` as the Nav2 path length and `c_search` as growing with area via the number of viewpoints; the viewpoint count already reflects area and line of sight (D-080). One unit (meters) keeps the ratio meaningful.
+- **Alternatives:** `c_search` proportional to room area (ignores walls and shape; viewpoints already cover that); both costs in seconds (needs speeds we have not measured yet); `c_travel` to the room centroid (the centroid of LR is not guaranteed to be inside it).
+
+### D-142 Ties, zero probability and unreachable rooms
+- **Date:** 2026-11-20 | **Status:** Proposed
+- **Decision:** Ties are broken by smaller `c_travel`, then by room ID, so every run is deterministic. A room with probability 0 scores 0 and is searched last, but it is still searched (completeness). A room with infinite travel cost (no Nav2 path) also scores 0 and comes last; skipping a blocked room ("try the next viewpoint, then skip the room", proposal Step 3) is the task manager's job: it marks the room as visited. The planner prior follows D-008: `success: false` gives a uniform prior, any successful answer (`llm`, `cache` or `fallback`) is used as returned, renormalized (`planner_prior`).
+- **Why:** reproducible trials (same seed, same order); the proposal requires that zero-probability rooms are still visited.
+- **Alternatives:** random tie-breaking (trials no longer repeatable); dropping zero-probability rooms (search not complete).
+
+### D-143 E2 baselines
+- **Date:** 2026-11-20 | **Status:** Proposed
+- **Decision:** `nearest`: the unvisited room with the smallest `c_travel` (same tie rule). `sweep`: the fixed order E, K, LR, D, B2, B1 for every trial, a parameter (`sweep_order`) checked to list each room once; it follows the doors from the start in E (E–K, K–LR, then the rooms off LR). `oracle`: the room that really holds the target first (from the scenario's truth file), then nearest-first if the target is somehow not found there.
+- **Why:** the four strategies of E2 in the proposal; all use the same `next_room()` call, so the task manager and the harness need no strategy-specific code.
+- **Alternatives:** a sweep order by room ID (drives back and forth across the house, an unfairly weak baseline); an oracle that stops after the true room (a missed detection would end the trial instead of continuing).
+
+### D-144 Viewpoint order inside a room
+- **Date:** 2026-11-20 | **Status:** Proposed
+- **Decision:** The robot visits a room's viewpoints in the order of the shortest open path from its current position (straight-line distances, all orders tried: at most 3! = 6 for 1–3 viewpoints). After a room, the planner's next choice starts from the last viewpoint visited.
+- **Why:** the order inside a room is not part of the proposal's rule; exhaustive search is exact and trivial at this size.
+- **Alternatives:** the order stored in the scene graph (it has no meaning, D-047/D-080); nearest-neighbor (not always the shortest).
+
 ## Open points to confirm with Kristika
 None at the moment. Former points 1–4 were answered by D-050, D-006, D-007 and D-074; former Phase 5 points 1–3 by D-128 (`source` field agreed), D-008 (planner behavior) and the 2026-11-17 build check in Kristika's setup (see the decision history).
 
 ## Decision history
+- 2026-11-20: Phase 6 room-order planner and E2 baselines (D-140 to D-144) proposed: ROS-free `room_order.py` with tests, no ROS node yet. Planner and baselines are a "Both" item, so they need Ansh's review.
 - 2026-11-17: Phase 5 build verified in Kristika's setup (ROS 2 Jazzy from apt, Ubuntu 24.04 in WSL, system Python 3.12; workspace `~/ros2_ws` outside the repository): `colcon build --symlink-install --base-paths /mnt/c/Users/krist/semantic-room-search/ros` builds `semantic_msgs`, `lang_grounding_ros` and `house_sim`; `ros2 interface show` lists the `source` field; the launch file finds the repository through the symlink and sets `PYTHONPATH`; after `pip install --user --break-system-packages "pydantic>=2"` (Ubuntu's own python3-pydantic is 1.x) the node starts with `backend:=fake` and `ros2 service call /ground_command` returns `success=True`, target `banana`, six room probabilities, `source` `llm` then `cache`. Open point 3 closed. Not yet checked: the Gemini and Ollama backends through the node.
 - 2026-11-17: Kristika confirmed the `source` field (D-128 set to Agreed) and decided the planner behavior for `success: false` and `source: fallback` (D-008, Agreed). Open point 3 (build in her WSL/apt setup) stays open until the smoke test there.
 - 2026-11-17: Phase 5 (ROS 2 interfaces and the `/ground_command` node): D-128 to D-132 proposed, written without building or running anything. New `source` field of `GroundCommand.srv` awaits Kristika.
